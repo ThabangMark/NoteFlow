@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 
+// ─── TYPES ─────────────────────────────────────────────────────────────────────
 type DocType = "Notes" | "Exam" | "Summary" | "Textbook";
 type NavPage = "explore" | "universities" | "courses" | "upload" | "pricing" | "dashboard" | "tutors";
 type UserPlan = "free" | "premium";
@@ -20,6 +21,7 @@ interface Tutor {
 }
 interface University { name: string; short: string; location: string; courses: string[]; emoji: string; }
 
+// ─── DATA ──────────────────────────────────────────────────────────────────────
 const universities: University[] = [
   { name: "Botswana Accountancy College", short: "BAC", location: "Gaborone", emoji: "🏫", courses: ["Computer Systems Engineering", "Accounting & Finance", "Business Administration", "Information Technology"] },
   { name: "University of Botswana", short: "UB", location: "Gaborone", emoji: "🎓", courses: ["Computer Science", "Law", "Medicine", "Engineering", "Economics", "Education"] },
@@ -68,6 +70,7 @@ const PLANS = [
   { id: "annual", name: "Annual", price: "P299", period: "/year", saves: "Save 72%", color: "#059669" },
 ];
 
+// ─── SHARED STYLES ─────────────────────────────────────────────────────────────
 const inp: React.CSSProperties = { width: "100%", padding: "12px 14px", borderRadius: "10px", border: "1.5px solid #CBD5E1", fontSize: "14px", fontFamily: "'DM Sans', sans-serif", outline: "none", color: "#0F172A", background: "#F8FAFF", boxSizing: "border-box" };
 const inputStyle: React.CSSProperties = { width: "100%", padding: "13px 16px", borderRadius: "10px", border: "1.5px solid #CBD5E1", fontSize: "14px", fontFamily: "'DM Sans', sans-serif", outline: "none", color: "#0F172A", background: "#FFFFFF", boxSizing: "border-box" };
 const labelStyle: React.CSSProperties = { display: "block", fontWeight: 700, fontSize: "13px", color: "#0F172A", marginBottom: "8px", fontFamily: "'DM Sans', sans-serif", textTransform: "uppercase", letterSpacing: "0.04em" };
@@ -149,8 +152,6 @@ const DocViewer = ({ doc, allDocs, user, onClose, onUpgrade, onReview }: { doc: 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }} onClick={onClose}>
       <div style={{ background: "#fff", borderRadius: "24px", width: "100%", maxWidth: "820px", maxHeight: "92vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-
-        {/* Header */}
         <div style={{ padding: "24px 28px 18px", borderBottom: "1px solid #E8EDF5", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div style={{ flex: 1, marginRight: "16px" }}>
             <div style={{ display: "flex", gap: "8px", marginBottom: "8px", flexWrap: "wrap" }}>
@@ -167,8 +168,6 @@ const DocViewer = ({ doc, allDocs, user, onClose, onUpgrade, onReview }: { doc: 
           </div>
           <button onClick={onClose} style={{ background: "#F1F5F9", border: "none", borderRadius: "10px", width: "36px", height: "36px", fontSize: "16px", cursor: "pointer", flexShrink: 0 }}>✕</button>
         </div>
-
-        {/* Free timer */}
         {canAccess && user?.plan === "free" && (
           <div style={{ background: "#FFF8E1", padding: "10px 28px", display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid #FDE68A" }}>
             <span>⏱️</span>
@@ -177,8 +176,6 @@ const DocViewer = ({ doc, allDocs, user, onClose, onUpgrade, onReview }: { doc: 
             </p>
           </div>
         )}
-
-        {/* Premium lock */}
         {!canAccess ? (
           <div style={{ padding: "48px 28px", textAlign: "center" }}>
             <div style={{ fontSize: "56px", marginBottom: "16px" }}>💎</div>
@@ -188,14 +185,11 @@ const DocViewer = ({ doc, allDocs, user, onClose, onUpgrade, onReview }: { doc: 
           </div>
         ) : (
           <>
-            {/* Stats */}
             <div style={{ padding: "14px 28px", background: "#F8FAFF", borderBottom: "1px solid #E8EDF5", display: "flex", gap: "24px", flexWrap: "wrap" }}>
               {[["📄", `${doc.pages} pages`], ["👁️", `${doc.downloads.toLocaleString()} views`], ["📚", doc.subject]].map(([icon, label]) => (
                 <div key={String(label)} style={{ display: "flex", alignItems: "center", gap: "6px", color: "#475569", fontSize: "13px", fontFamily: "'DM Sans', sans-serif" }}><span>{icon}</span><span>{label}</span></div>
               ))}
             </div>
-
-            {/* Pages preview */}
             <div style={{ padding: "24px 28px" }}>
               <h4 style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "12px", fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 14px" }}>Document Preview</h4>
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -212,8 +206,6 @@ const DocViewer = ({ doc, allDocs, user, onClose, onUpgrade, onReview }: { doc: 
                 ))}
               </div>
             </div>
-
-            {/* Ratings summary */}
             <div style={{ padding: "0 28px 24px" }}>
               <div style={{ borderTop: "1px solid #E8EDF5", paddingTop: "24px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
@@ -232,13 +224,11 @@ const DocViewer = ({ doc, allDocs, user, onClose, onUpgrade, onReview }: { doc: 
                   )}
                   {!user && <p style={{ fontSize: "13px", color: "#64748B", fontFamily: "'DM Sans', sans-serif", margin: 0 }}>Sign in to leave a review</p>}
                 </div>
-
                 {showReviewForm && (
                   <div style={{ marginBottom: "20px" }}>
                     <ReviewForm onSubmit={(r, c) => { onReview(doc.id, r, c); setShowReviewForm(false); }} onCancel={() => setShowReviewForm(false)} />
                   </div>
                 )}
-
                 <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                   {doc.reviews.length > 0 ? doc.reviews.map(review => <ReviewCard key={review.id} review={review} />) : (
                     <div style={{ textAlign: "center", padding: "24px", color: "#94A3B8", fontFamily: "'DM Sans', sans-serif" }}>
@@ -249,8 +239,6 @@ const DocViewer = ({ doc, allDocs, user, onClose, onUpgrade, onReview }: { doc: 
                 </div>
               </div>
             </div>
-
-            {/* Recommendations */}
             {recommended.length > 0 && (
               <div style={{ padding: "0 28px 28px" }}>
                 <div style={{ borderTop: "1px solid #E8EDF5", paddingTop: "24px" }}>
@@ -271,8 +259,6 @@ const DocViewer = ({ doc, allDocs, user, onClose, onUpgrade, onReview }: { doc: 
                 </div>
               </div>
             )}
-
-            {/* Footer */}
             <div style={{ padding: "18px 28px", borderTop: "1px solid #E8EDF5", display: "flex", gap: "12px", justifyContent: "flex-end" }}>
               <button onClick={onClose} style={{ padding: "10px 20px", borderRadius: "10px", border: "1.5px solid #E2E8F0", background: "#fff", color: "#475569", fontSize: "14px", fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Close</button>
               {user?.plan === "premium" && <button style={{ padding: "10px 20px", borderRadius: "10px", border: "none", background: "linear-gradient(135deg, #3B5BDB, #6366F1)", color: "#fff", fontSize: "14px", fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>⬇️ Download PDF</button>}
@@ -323,7 +309,6 @@ const TutorViewer = ({ tutor, user, onClose, onSignIn, onReview }: { tutor: Tuto
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }} onClick={onClose}>
       <div style={{ background: "#fff", borderRadius: "24px", width: "100%", maxWidth: "700px", maxHeight: "92vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-        {/* Header */}
         <div style={{ background: "linear-gradient(135deg, #1E3A8A, #3B5BDB)", padding: "28px", borderRadius: "24px 24px 0 0", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
             <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "22px", fontWeight: 700, fontFamily: "'DM Sans', sans-serif" }}>{tutor.avatar}</div>
@@ -335,9 +320,7 @@ const TutorViewer = ({ tutor, user, onClose, onSignIn, onReview }: { tutor: Tuto
           </div>
           <button onClick={onClose} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: "10px", width: "36px", height: "36px", fontSize: "16px", cursor: "pointer", color: "#fff" }}>✕</button>
         </div>
-
         <div style={{ padding: "28px", display: "flex", flexDirection: "column", gap: "24px" }}>
-          {/* Bio & subjects */}
           <div>
             <h4 style={{ fontFamily: "'Playfair Display', serif", fontSize: "17px", color: "#0F172A", margin: "0 0 8px" }}>About</h4>
             <p style={{ color: "#475569", fontSize: "14px", margin: "0 0 14px", fontFamily: "'DM Sans', sans-serif", lineHeight: 1.6 }}>{tutor.bio}</p>
@@ -345,8 +328,6 @@ const TutorViewer = ({ tutor, user, onClose, onSignIn, onReview }: { tutor: Tuto
               {tutor.subjects.map(s => <span key={s} style={{ background: "#EAF3FF", color: "#2563EB", fontSize: "12px", fontWeight: 600, padding: "5px 12px", borderRadius: "20px", fontFamily: "'DM Sans', sans-serif" }}>{s}</span>)}
             </div>
           </div>
-
-          {/* Rate & booking */}
           <div style={{ background: "#F8FAFF", borderRadius: "14px", padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
             <div>
               <p style={{ margin: "0 0 2px", fontSize: "12px", color: "#64748B", fontFamily: "'DM Sans', sans-serif", textTransform: "uppercase", fontWeight: 600 }}>Session Rate</p>
@@ -363,8 +344,6 @@ const TutorViewer = ({ tutor, user, onClose, onSignIn, onReview }: { tutor: Tuto
               </button>
             )}
           </div>
-
-          {/* Booking form */}
           {showBook && !booked && (
             <div style={{ background: "#fff", border: "1.5px solid #3B5BDB", borderRadius: "14px", padding: "20px", display: "flex", flexDirection: "column", gap: "14px" }}>
               <h4 style={{ fontFamily: "'Playfair Display', serif", fontSize: "17px", color: "#0F172A", margin: 0 }}>Book a Session</h4>
@@ -380,8 +359,6 @@ const TutorViewer = ({ tutor, user, onClose, onSignIn, onReview }: { tutor: Tuto
               </div>
             </div>
           )}
-
-          {/* Reviews */}
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <h4 style={{ fontFamily: "'Playfair Display', serif", fontSize: "18px", color: "#0F172A", margin: 0 }}>Student Reviews ({tutor.reviews.length})</h4>
@@ -417,13 +394,11 @@ const TutorsPage = ({ user, onSignIn, tutors, onReview }: { user: User | null; o
   return (
     <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "40px 24px 80px" }}>
       {selectedTutor && <TutorViewer tutor={tutors.find(t => t.id === selectedTutor.id) || selectedTutor} user={user} onClose={() => setSelectedTutor(null)} onSignIn={() => { setSelectedTutor(null); onSignIn(); }} onReview={onReview} />}
-
       <div style={{ textAlign: "center", marginBottom: "40px" }}>
         <div style={{ display: "inline-block", background: "#EAF3FF", color: "#2563EB", borderRadius: "20px", padding: "6px 16px", fontSize: "12px", fontWeight: 700, marginBottom: "14px", fontFamily: "'DM Sans', sans-serif", textTransform: "uppercase" }}>👨‍🏫 Tutor Marketplace</div>
         <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: "36px", color: "#0F172A", margin: "0 0 10px" }}>Find Your Perfect Tutor</h2>
         <p style={{ color: "#64748B", fontSize: "16px", maxWidth: "500px", margin: "0 auto", fontFamily: "'DM Sans', sans-serif" }}>Connect with top students from Botswana universities for 1-on-1 tutoring sessions</p>
       </div>
-
       <div style={{ display: "flex", gap: "12px", marginBottom: "28px", flexWrap: "wrap" }}>
         <div style={{ flex: 1, minWidth: "200px", display: "flex", alignItems: "center", background: "#fff", borderRadius: "12px", border: "1.5px solid #E2E8F0", padding: "0 16px" }}>
           <span style={{ marginRight: "8px", fontSize: "16px" }}>🔍</span>
@@ -434,7 +409,6 @@ const TutorsPage = ({ user, onSignIn, tutors, onReview }: { user: User | null; o
           {universities.map(u => <option key={u.name} value={u.name}>{u.name}</option>)}
         </select>
       </div>
-
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "20px" }}>
         {filtered.map(tutor => <TutorCard key={tutor.id} tutor={tutor} onOpen={setSelectedTutor} />)}
         {filtered.length === 0 && (
@@ -444,7 +418,6 @@ const TutorsPage = ({ user, onSignIn, tutors, onReview }: { user: User | null; o
           </div>
         )}
       </div>
-
       <div style={{ marginTop: "48px", background: "linear-gradient(135deg, #1E3A8A, #3B5BDB)", borderRadius: "20px", padding: "40px", textAlign: "center" }}>
         <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: "26px", color: "#fff", margin: "0 0 10px" }}>Are You a Top Student?</h3>
         <p style={{ color: "rgba(255,255,255,0.75)", fontFamily: "'DM Sans', sans-serif", maxWidth: "400px", margin: "0 auto 20px" }}>Join our tutor marketplace and earn money helping fellow students pass their exams.</p>
@@ -596,7 +569,534 @@ const UploadPage = ({ user, onSignIn }: { user: User | null; onSignIn: () => voi
   );
 };
 
-// ─── MAIN APP ──────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── ADMIN PORTAL ─────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const ADMIN_CREDENTIALS = { username: "Mark", password: "mark12345" };
+
+const adminSidebarItems = [
+  { id: "overview", icon: "▦", label: "Overview" },
+  { id: "users", icon: "👥", label: "User Management" },
+  { id: "verification", icon: "✅", label: "Tutor Verification" },
+  { id: "payments", icon: "💳", label: "Payment Monitoring" },
+  { id: "ratings", icon: "⭐", label: "Ratings Monitor" },
+  { id: "maintenance", icon: "⚙️", label: "System Maintenance" },
+];
+
+const mockVerifications = [
+  { id: 1, name: "—", university: "University of Botswana", subject: "Computer Science", submitted: "10 Mar 2026", status: "pending", docs: "ID, Transcript" },
+  { id: 2, name: "—", university: "BIUST", subject: "Electrical Engineering", submitted: "09 Mar 2026", status: "pending", docs: "ID, Transcript, Certificate" },
+  { id: 3, name: "—", university: "BAC", subject: "Accounting", submitted: "08 Mar 2026", status: "approved" as const, docs: "ID" },
+  { id: 4, name: "—", university: "Botho University", subject: "Nursing", submitted: "07 Mar 2026", status: "rejected" as const, docs: "ID" },
+];
+
+const mockPayments = [
+  { id: "TXN-001", student: "—", plan: "Monthly", amount: "P89", date: "15 Mar 2026", status: "completed" as const },
+  { id: "TXN-002", student: "—", plan: "Semester", amount: "P199", date: "14 Mar 2026", status: "completed" as const },
+  { id: "TXN-003", student: "—", plan: "Annual", amount: "P299", date: "13 Mar 2026", status: "pending" as const },
+  { id: "TXN-004", student: "—", plan: "Monthly", amount: "P89", date: "12 Mar 2026", status: "failed" as const },
+  { id: "TXN-005", student: "—", plan: "Semester", amount: "P199", date: "11 Mar 2026", status: "completed" as const },
+];
+
+const mockAdminRatings = [
+  { id: 1, reviewer: "—", target: "Document: Java Notes", rating: 5, comment: "Excellent resource.", date: "15 Mar 2026", type: "doc", flagged: false },
+  { id: 2, reviewer: "—", target: "Tutor: —", rating: 1, comment: "Did not show up for session.", date: "14 Mar 2026", type: "tutor", flagged: true },
+  { id: 3, reviewer: "—", target: "Document: DB Exam 2023", rating: 4, comment: "Very helpful for revision.", date: "13 Mar 2026", type: "doc", flagged: false },
+  { id: 4, reviewer: "—", target: "Tutor: —", rating: 2, comment: "Poor explanation skills.", date: "12 Mar 2026", type: "tutor", flagged: true },
+];
+
+const StatusPill = ({ status }: { status: string }) => {
+  const styles: Record<string, { bg: string; color: string }> = {
+    completed: { bg: "#D1FAE5", color: "#065F46" }, pending: { bg: "#FEF3C7", color: "#92400E" },
+    failed: { bg: "#FEE2E2", color: "#991B1B" }, approved: { bg: "#D1FAE5", color: "#065F46" },
+    rejected: { bg: "#FEE2E2", color: "#991B1B" }, active: { bg: "#DBEAFE", color: "#1E40AF" },
+    inactive: { bg: "#F1F5F9", color: "#475569" }, online: { bg: "#D1FAE5", color: "#065F46" },
+    degraded: { bg: "#FEF3C7", color: "#92400E" },
+  };
+  const s = styles[status] || styles.inactive;
+  return <span style={{ background: s.bg, color: s.color, fontSize: "11px", fontWeight: 700, padding: "3px 10px", borderRadius: "20px", fontFamily: "'DM Sans', sans-serif", textTransform: "capitalize" }}>{status}</span>;
+};
+
+// Admin: Overview
+const AdminOverview = () => {
+  const cards = [
+    { label: "Total Students", value: "0", sub: "Registered accounts", icon: "🎓", color: "#3B5BDB" },
+    { label: "Active Tutors", value: "0", sub: "Verified profiles", icon: "👨‍🏫", color: "#059669" },
+    { label: "Total Revenue", value: "P0", sub: "All-time earnings", icon: "💰", color: "#D97706" },
+    { label: "Pending Verifications", value: "2", sub: "Awaiting review", icon: "⏳", color: "#DC2626" },
+  ];
+  return (
+    <div>
+      <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: "28px", color: "#0F172A", margin: "0 0 6px" }}>Dashboard Overview</h1>
+      <p style={{ color: "#64748B", fontSize: "14px", fontFamily: "'DM Sans', sans-serif", margin: "0 0 28px" }}>Welcome back, Mark. Here's what's happening on NoteFlow today.</p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "16px", marginBottom: "28px" }}>
+        {cards.map(s => (
+          <div key={s.label} style={{ background: "#fff", borderRadius: "16px", padding: "24px", border: "1.5px solid #E8EDF5" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px" }}>
+              <div style={{ width: 40, height: 40, borderRadius: "12px", background: `${s.color}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px" }}>{s.icon}</div>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22C55E", marginTop: 4 }} />
+            </div>
+            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "28px", fontWeight: 700, color: "#0F172A", marginBottom: "4px" }}>{s.value}</div>
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "13px", fontWeight: 600, color: "#0F172A", marginBottom: "2px" }}>{s.label}</div>
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "12px", color: "#94A3B8" }}>{s.sub}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+        <div style={{ background: "#fff", borderRadius: "16px", padding: "24px", border: "1.5px solid #E8EDF5" }}>
+          <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: "17px", color: "#0F172A", margin: "0 0 20px" }}>Platform Statistics</h3>
+          {[["Documents Uploaded", "13"], ["Sessions Booked", "0"], ["Premium Subscribers", "0"], ["Flagged Reviews", "2"]].map(([label, val]) => (
+            <div key={label} style={{ display: "flex", justifyContent: "space-between", paddingBottom: "14px", marginBottom: "14px", borderBottom: "1px solid #F1F5F9" }}>
+              <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "13px", color: "#475569" }}>{label}</span>
+              <span style={{ fontFamily: "'Playfair Display', serif", fontSize: "16px", fontWeight: 700, color: "#0F172A" }}>{val}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ background: "#fff", borderRadius: "16px", padding: "24px", border: "1.5px solid #E8EDF5" }}>
+          <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: "17px", color: "#0F172A", margin: "0 0 20px" }}>Recent Activity</h3>
+          {[
+            { dot: "#3B5BDB", text: "2 new tutor verification requests", time: "2h ago" },
+            { dot: "#D97706", text: "New transaction: P199 (Semester Plan)", time: "5h ago" },
+            { dot: "#DC2626", text: "2 reviews flagged for moderation", time: "1d ago" },
+            { dot: "#059669", text: "System backup completed successfully", time: "2d ago" },
+          ].map((a, i) => (
+            <div key={i} style={{ display: "flex", gap: "12px", paddingBottom: "14px", marginBottom: "14px", borderBottom: "1px solid #F1F5F9" }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: a.dot, marginTop: 5, flexShrink: 0 }} />
+              <div>
+                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "13px", color: "#0F172A", margin: "0 0 2px" }}>{a.text}</p>
+                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "11px", color: "#94A3B8", margin: 0 }}>{a.time}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Admin: User Management
+const AdminUserManagement = () => {
+  const [tab, setTab] = useState<"students" | "tutors">("students");
+  const [showForm, setShowForm] = useState(false);
+  const [students, setStudents] = useState<any[]>([]);
+  const [tutors, setTutors] = useState<any[]>([]);
+  const [form, setForm] = useState({ name: "", email: "", university: "", course: "", subjects: "", rate: "", plan: "free" });
+  const iS: React.CSSProperties = { width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1.5px solid #E2E8F0", fontSize: "13px", fontFamily: "'DM Sans', sans-serif", outline: "none", color: "#0F172A", background: "#F8FAFF", boxSizing: "border-box" };
+  const lS: React.CSSProperties = { display: "block", fontSize: "11px", fontWeight: 700, color: "#64748B", marginBottom: "4px", fontFamily: "'DM Sans', sans-serif", textTransform: "uppercase", letterSpacing: "0.04em" };
+
+  const save = () => {
+    if (!form.name || !form.email) { alert("Name and email are required."); return; }
+    if (tab === "students") setStudents(p => [...p, { ...form, id: Date.now(), joined: "Today", status: "active" }]);
+    else setTutors(p => [...p, { ...form, id: Date.now(), joined: "Today", status: "pending" }]);
+    setForm({ name: "", email: "", university: "", course: "", subjects: "", rate: "", plan: "free" });
+    setShowForm(false);
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "28px" }}>
+        <div>
+          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: "28px", color: "#0F172A", margin: "0 0 4px" }}>User Management</h1>
+          <p style={{ color: "#64748B", fontSize: "14px", fontFamily: "'DM Sans', sans-serif", margin: 0 }}>Manage all student and tutor accounts.</p>
+        </div>
+        <button onClick={() => setShowForm(true)} style={{ background: "linear-gradient(135deg, #3B5BDB, #6366F1)", color: "#fff", border: "none", borderRadius: "10px", padding: "10px 20px", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>+ Add {tab === "students" ? "Student" : "Tutor"}</button>
+      </div>
+      <div style={{ display: "flex", gap: "4px", background: "#F1F5F9", borderRadius: "10px", padding: "4px", width: "fit-content", marginBottom: "24px" }}>
+        {(["students", "tutors"] as const).map(t => (
+          <button key={t} onClick={() => { setTab(t); setShowForm(false); }} style={{ padding: "8px 24px", borderRadius: "8px", border: "none", background: tab === t ? "#fff" : "transparent", color: tab === t ? "#0F172A" : "#64748B", fontWeight: tab === t ? 700 : 500, fontSize: "14px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", boxShadow: tab === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none", textTransform: "capitalize" }}>
+            {t} ({t === "students" ? students.length : tutors.length})
+          </button>
+        ))}
+      </div>
+      {showForm && (
+        <div style={{ background: "#fff", border: "1.5px solid #3B5BDB", borderRadius: "16px", padding: "24px", marginBottom: "20px" }}>
+          <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: "17px", color: "#0F172A", margin: "0 0 16px" }}>Add New {tab === "students" ? "Student" : "Tutor"}</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
+            <div><label style={lS}>Full Name *</label><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Full name" style={iS} /></div>
+            <div><label style={lS}>Email *</label><input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="Email address" style={iS} /></div>
+            <div><label style={lS}>University</label><input value={form.university} onChange={e => setForm({ ...form, university: e.target.value })} placeholder="University name" style={iS} /></div>
+            {tab === "students" ? (
+              <>
+                <div><label style={lS}>Course</label><input value={form.course} onChange={e => setForm({ ...form, course: e.target.value })} placeholder="e.g. Computer Science" style={iS} /></div>
+                <div><label style={lS}>Plan</label><select value={form.plan} onChange={e => setForm({ ...form, plan: e.target.value })} style={iS}><option value="free">Free</option><option value="premium">Premium</option></select></div>
+              </>
+            ) : (
+              <>
+                <div><label style={lS}>Subjects</label><input value={form.subjects} onChange={e => setForm({ ...form, subjects: e.target.value })} placeholder="e.g. Maths, Physics" style={iS} /></div>
+                <div><label style={lS}>Session Rate</label><input value={form.rate} onChange={e => setForm({ ...form, rate: e.target.value })} placeholder="e.g. P80/hr" style={iS} /></div>
+              </>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: "10px" }}>
+            <button onClick={save} style={{ background: "linear-gradient(135deg, #3B5BDB, #6366F1)", color: "#fff", border: "none", borderRadius: "8px", padding: "10px 20px", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Save</button>
+            <button onClick={() => setShowForm(false)} style={{ background: "#F1F5F9", color: "#475569", border: "none", borderRadius: "8px", padding: "10px 20px", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Cancel</button>
+          </div>
+        </div>
+      )}
+      <div style={{ background: "#fff", borderRadius: "16px", border: "1.5px solid #E8EDF5", overflow: "hidden" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ background: "#F8FAFF" }}>
+              {(tab === "students" ? ["Name", "Email", "University", "Course", "Plan", "Joined", "Status", ""] : ["Name", "Email", "University", "Subjects", "Rate", "Joined", "Status", ""]).map(h => (
+                <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: "11px", fontWeight: 700, color: "#64748B", fontFamily: "'DM Sans', sans-serif", textTransform: "uppercase", letterSpacing: "0.04em", borderBottom: "1px solid #E8EDF5" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {(tab === "students" ? students : tutors).length === 0 ? (
+              <tr><td colSpan={8} style={{ padding: "48px", textAlign: "center", color: "#94A3B8", fontFamily: "'DM Sans', sans-serif", fontSize: "14px" }}>No {tab} yet. Add one above.</td></tr>
+            ) : (tab === "students" ? students : tutors).map((u: any) => (
+              <tr key={u.id} style={{ borderBottom: "1px solid #F1F5F9" }}>
+                <td style={{ padding: "13px 16px", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", fontWeight: 600, color: "#0F172A" }}>{u.name}</td>
+                <td style={{ padding: "13px 16px", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", color: "#475569" }}>{u.email}</td>
+                <td style={{ padding: "13px 16px", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", color: "#475569" }}>{u.university || "—"}</td>
+                <td style={{ padding: "13px 16px", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", color: "#475569" }}>{tab === "students" ? (u.course || "—") : (u.subjects || "—")}</td>
+                <td style={{ padding: "13px 16px" }}>
+                  {tab === "students"
+                    ? <span style={{ background: u.plan === "premium" ? "#FFF8E1" : "#F1F5F9", color: u.plan === "premium" ? "#B45309" : "#64748B", fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: "20px", fontFamily: "'DM Sans', sans-serif" }}>{u.plan === "premium" ? "💎 Premium" : "Free"}</span>
+                    : <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "13px", color: "#3B5BDB", fontWeight: 600 }}>{u.rate || "—"}</span>}
+                </td>
+                <td style={{ padding: "13px 16px", fontFamily: "'DM Sans', sans-serif", fontSize: "12px", color: "#94A3B8" }}>{u.joined}</td>
+                <td style={{ padding: "13px 16px" }}><StatusPill status={u.status} /></td>
+                <td style={{ padding: "13px 16px" }}><button onClick={() => tab === "students" ? setStudents(p => p.filter((x: any) => x.id !== u.id)) : setTutors(p => p.filter((x: any) => x.id !== u.id))} style={{ background: "#FEE2E2", color: "#991B1B", border: "none", borderRadius: "6px", padding: "5px 10px", fontSize: "11px", fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Remove</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+// Admin: Tutor Verification
+const AdminVerification = () => {
+  const [verifications, setVerifications] = useState(mockVerifications);
+  const update = (id: number, status: string) => setVerifications(prev => prev.map(v => v.id === id ? { ...v, status } : v));
+  const pending = verifications.filter(v => v.status === "pending");
+  const reviewed = verifications.filter(v => v.status !== "pending");
+
+  return (
+    <div>
+      <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: "28px", color: "#0F172A", margin: "0 0 4px" }}>Tutor Verification</h1>
+      <p style={{ color: "#64748B", fontSize: "14px", fontFamily: "'DM Sans', sans-serif", margin: "0 0 24px" }}>Review and verify tutor applications before they go live on the platform.</p>
+      <div style={{ display: "flex", gap: "12px", marginBottom: "28px" }}>
+        {[{ label: "Pending Review", val: pending.length, color: "#D97706", bg: "#FEF3C7" }, { label: "Approved", val: verifications.filter(v => v.status === "approved").length, color: "#059669", bg: "#D1FAE5" }, { label: "Rejected", val: verifications.filter(v => v.status === "rejected").length, color: "#DC2626", bg: "#FEE2E2" }].map(s => (
+          <div key={s.label} style={{ background: s.bg, borderRadius: "12px", padding: "14px 20px" }}>
+            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "22px", fontWeight: 700, color: s.color }}>{s.val}</div>
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "12px", color: s.color, fontWeight: 600 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+      {pending.length > 0 && (
+        <>
+          <h3 style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "13px", fontWeight: 700, color: "#64748B", margin: "0 0 14px", textTransform: "uppercase", letterSpacing: "0.06em" }}>⏳ Pending Review</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "28px" }}>
+            {pending.map(v => (
+              <div key={v.id} style={{ background: "#fff", borderRadius: "14px", padding: "20px 24px", border: "1.5px solid #FDE68A" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "12px" }}>
+                  <div>
+                    <h4 style={{ fontFamily: "'Playfair Display', serif", fontSize: "16px", color: "#0F172A", margin: "0 0 4px" }}>{v.name}</h4>
+                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "13px", color: "#475569", margin: "0 0 8px" }}>🎓 {v.university} · {v.subject}</p>
+                    <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
+                      <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "12px", color: "#64748B" }}>📅 Submitted: {v.submitted}</span>
+                      <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "12px", color: "#64748B" }}>📎 Documents: {v.docs}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button onClick={() => update(v.id, "approved")} style={{ background: "#D1FAE5", color: "#065F46", border: "none", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>✓ Approve</button>
+                    <button onClick={() => update(v.id, "rejected")} style={{ background: "#FEE2E2", color: "#991B1B", border: "none", borderRadius: "8px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>✕ Reject</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      {reviewed.length > 0 && (
+        <>
+          <h3 style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "13px", fontWeight: 700, color: "#64748B", margin: "0 0 14px", textTransform: "uppercase", letterSpacing: "0.06em" }}>📋 Previously Reviewed</h3>
+          <div style={{ background: "#fff", borderRadius: "16px", border: "1.5px solid #E8EDF5", overflow: "hidden" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead><tr style={{ background: "#F8FAFF" }}>{["Name", "University", "Subject", "Submitted", "Status"].map(h => <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: "11px", fontWeight: 700, color: "#64748B", fontFamily: "'DM Sans', sans-serif", textTransform: "uppercase", borderBottom: "1px solid #E8EDF5" }}>{h}</th>)}</tr></thead>
+              <tbody>{reviewed.map(v => (
+                <tr key={v.id} style={{ borderBottom: "1px solid #F1F5F9" }}>
+                  <td style={{ padding: "13px 16px", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", fontWeight: 600, color: "#0F172A" }}>{v.name}</td>
+                  <td style={{ padding: "13px 16px", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", color: "#475569" }}>{v.university}</td>
+                  <td style={{ padding: "13px 16px", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", color: "#475569" }}>{v.subject}</td>
+                  <td style={{ padding: "13px 16px", fontFamily: "'DM Sans', sans-serif", fontSize: "12px", color: "#94A3B8" }}>{v.submitted}</td>
+                  <td style={{ padding: "13px 16px" }}><StatusPill status={v.status} /></td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+// Admin: Payment Monitoring
+const AdminPayments = () => {
+  const total = mockPayments.filter(p => p.status === "completed").reduce((a, p) => a + parseInt(p.amount.replace("P", "")), 0);
+  return (
+    <div>
+      <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: "28px", color: "#0F172A", margin: "0 0 4px" }}>Payment Monitoring</h1>
+      <p style={{ color: "#64748B", fontSize: "14px", fontFamily: "'DM Sans', sans-serif", margin: "0 0 24px" }}>Track all transactions and subscription payments.</p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "14px", marginBottom: "28px" }}>
+        {[{ label: "Total Revenue", value: `P${total}`, icon: "💰", color: "#059669", bg: "#D1FAE5" }, { label: "Completed", value: String(mockPayments.filter(p => p.status === "completed").length), icon: "✅", color: "#059669", bg: "#D1FAE5" }, { label: "Pending", value: String(mockPayments.filter(p => p.status === "pending").length), icon: "⏳", color: "#D97706", bg: "#FEF3C7" }, { label: "Failed", value: String(mockPayments.filter(p => p.status === "failed").length), icon: "❌", color: "#DC2626", bg: "#FEE2E2" }].map(s => (
+          <div key={s.label} style={{ background: s.bg, borderRadius: "14px", padding: "18px 20px" }}>
+            <div style={{ fontSize: "18px", marginBottom: "8px" }}>{s.icon}</div>
+            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "22px", fontWeight: 700, color: s.color, marginBottom: "2px" }}>{s.value}</div>
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "12px", color: s.color, fontWeight: 600 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ background: "#fff", borderRadius: "16px", border: "1.5px solid #E8EDF5", overflow: "hidden" }}>
+        <div style={{ padding: "18px 24px", borderBottom: "1px solid #E8EDF5" }}>
+          <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: "17px", color: "#0F172A", margin: 0 }}>Transaction History</h3>
+        </div>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead><tr style={{ background: "#F8FAFF" }}>{["Transaction ID", "Student", "Plan", "Amount", "Date", "Status"].map(h => <th key={h} style={{ padding: "12px 20px", textAlign: "left", fontSize: "11px", fontWeight: 700, color: "#64748B", fontFamily: "'DM Sans', sans-serif", textTransform: "uppercase", letterSpacing: "0.04em", borderBottom: "1px solid #E8EDF5" }}>{h}</th>)}</tr></thead>
+          <tbody>{mockPayments.map(p => (
+            <tr key={p.id} style={{ borderBottom: "1px solid #F1F5F9" }}>
+              <td style={{ padding: "14px 20px", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", fontWeight: 600, color: "#3B5BDB" }}>{p.id}</td>
+              <td style={{ padding: "14px 20px", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", color: "#475569" }}>{p.student}</td>
+              <td style={{ padding: "14px 20px", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", color: "#475569" }}>{p.plan}</td>
+              <td style={{ padding: "14px 20px", fontFamily: "'Playfair Display', serif", fontSize: "14px", fontWeight: 700, color: "#059669" }}>{p.amount}</td>
+              <td style={{ padding: "14px 20px", fontFamily: "'DM Sans', sans-serif", fontSize: "12px", color: "#94A3B8" }}>{p.date}</td>
+              <td style={{ padding: "14px 20px" }}><StatusPill status={p.status} /></td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+// Admin: Ratings Monitor
+const AdminRatings = () => {
+  const [ratings, setRatings] = useState(mockAdminRatings);
+  const [filter, setFilter] = useState("all");
+  const remove = (id: number) => setRatings(prev => prev.filter(r => r.id !== id));
+  const unflag = (id: number) => setRatings(prev => prev.map(r => r.id === id ? { ...r, flagged: false } : r));
+  const displayed = filter === "flagged" ? ratings.filter(r => r.flagged) : filter === "doc" ? ratings.filter(r => r.type === "doc") : filter === "tutor" ? ratings.filter(r => r.type === "tutor") : ratings;
+
+  return (
+    <div>
+      <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: "28px", color: "#0F172A", margin: "0 0 4px" }}>Ratings Monitor</h1>
+      <p style={{ color: "#64748B", fontSize: "14px", fontFamily: "'DM Sans', sans-serif", margin: "0 0 24px" }}>Monitor all reviews and manage flagged content.</p>
+      <div style={{ display: "flex", gap: "10px", marginBottom: "20px", flexWrap: "wrap" }}>
+        {[{ label: "All Reviews", value: "all" }, { label: `⚑ Flagged (${ratings.filter(r => r.flagged).length})`, value: "flagged" }, { label: "Document Reviews", value: "doc" }, { label: "Tutor Reviews", value: "tutor" }].map(f => (
+          <button key={f.value} onClick={() => setFilter(f.value)} style={{ padding: "8px 16px", borderRadius: "20px", fontSize: "13px", fontWeight: 600, border: filter === f.value ? "none" : "1.5px solid #E2E8F0", background: filter === f.value ? "#0F172A" : "#fff", color: filter === f.value ? "#fff" : "#64748B", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>{f.label}</button>
+        ))}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        {displayed.map(r => (
+          <div key={r.id} style={{ background: "#fff", borderRadius: "14px", padding: "18px 22px", border: `1.5px solid ${r.flagged ? "#FCA5A5" : "#E8EDF5"}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "12px" }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px", flexWrap: "wrap" }}>
+                  {r.flagged && <span style={{ background: "#FEE2E2", color: "#991B1B", fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: "20px", fontFamily: "'DM Sans', sans-serif" }}>⚑ Flagged</span>}
+                  <span style={{ background: r.type === "doc" ? "#EAF3FF" : "#F5F0FF", color: r.type === "doc" ? "#2563EB" : "#7C3AED", fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: "20px", fontFamily: "'DM Sans', sans-serif" }}>{r.type === "doc" ? "Document" : "Tutor"}</span>
+                  <span style={{ color: "#F59E0B", fontSize: "13px" }}>{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
+                </div>
+                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "13px", fontWeight: 600, color: "#0F172A", margin: "0 0 3px" }}>{r.target}</p>
+                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "13px", color: "#475569", margin: "0 0 6px" }}>{r.comment}</p>
+                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "11px", color: "#94A3B8", margin: 0 }}>By {r.reviewer} · {r.date}</p>
+              </div>
+              <div style={{ display: "flex", gap: "8px" }}>
+                {r.flagged && <button onClick={() => unflag(r.id)} style={{ background: "#D1FAE5", color: "#065F46", border: "none", borderRadius: "7px", padding: "7px 14px", fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Clear Flag</button>}
+                <button onClick={() => remove(r.id)} style={{ background: "#FEE2E2", color: "#991B1B", border: "none", borderRadius: "7px", padding: "7px 14px", fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Remove</button>
+              </div>
+            </div>
+          </div>
+        ))}
+        {displayed.length === 0 && <div style={{ textAlign: "center", padding: "48px", color: "#94A3B8", fontFamily: "'DM Sans', sans-serif" }}>No reviews in this category.</div>}
+      </div>
+    </div>
+  );
+};
+
+// Admin: System Maintenance
+const AdminMaintenance = () => {
+  const [features, setFeatures] = useState({ uploads: true, payments: true, tutorBooking: true, freeAccess: true, premiumOnly: false, maintenanceMode: false });
+  const [backupStatus, setBackupStatus] = useState<"idle" | "running" | "done">("idle");
+  const toggle = (key: keyof typeof features) => setFeatures(prev => ({ ...prev, [key]: !prev[key] }));
+  const featureList = [
+    { key: "uploads" as const, label: "Document Uploads", desc: "Allow users to upload new study materials" },
+    { key: "payments" as const, label: "Payment Processing", desc: "Enable subscription payments and upgrades" },
+    { key: "tutorBooking" as const, label: "Tutor Booking", desc: "Allow students to book tutoring sessions" },
+    { key: "freeAccess" as const, label: "Free Document Access", desc: "Let free users access non-premium documents" },
+    { key: "premiumOnly" as const, label: "Premium-Only Mode", desc: "Restrict all documents to premium subscribers" },
+    { key: "maintenanceMode" as const, label: "Maintenance Mode", desc: "Show maintenance banner to all users" },
+  ];
+  const services = [{ name: "API Server", status: "online" }, { name: "Database", status: "online" }, { name: "File Storage", status: "online" }, { name: "Payment Gateway", status: "degraded" }, { name: "Email Service", status: "online" }];
+
+  return (
+    <div>
+      <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: "28px", color: "#0F172A", margin: "0 0 4px" }}>System Maintenance</h1>
+      <p style={{ color: "#64748B", fontSize: "14px", fontFamily: "'DM Sans', sans-serif", margin: "0 0 28px" }}>Manage platform features, monitor service health and run system operations.</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+        <div style={{ background: "#fff", borderRadius: "16px", padding: "24px", border: "1.5px solid #E8EDF5" }}>
+          <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: "17px", color: "#0F172A", margin: "0 0 20px" }}>Feature Toggles</h3>
+          {featureList.map(f => (
+            <div key={f.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "14px", marginBottom: "14px", borderBottom: "1px solid #F1F5F9" }}>
+              <div>
+                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "13px", fontWeight: 600, color: "#0F172A", margin: "0 0 2px" }}>{f.label}</p>
+                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "11px", color: "#94A3B8", margin: 0 }}>{f.desc}</p>
+              </div>
+              <div onClick={() => toggle(f.key)} style={{ width: 44, height: 24, borderRadius: "12px", background: features[f.key] ? "#3B5BDB" : "#CBD5E1", cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
+                <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: features[f.key] ? 23 : 3, transition: "left 0.2s", boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }} />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <div style={{ background: "#fff", borderRadius: "16px", padding: "24px", border: "1.5px solid #E8EDF5" }}>
+            <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: "17px", color: "#0F172A", margin: "0 0 16px" }}>Service Health</h3>
+            {services.map(s => (
+              <div key={s.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "13px", color: "#475569" }}>{s.name}</span>
+                <StatusPill status={s.status} />
+              </div>
+            ))}
+          </div>
+          <div style={{ background: "#fff", borderRadius: "16px", padding: "24px", border: "1.5px solid #E8EDF5" }}>
+            <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: "17px", color: "#0F172A", margin: "0 0 6px" }}>System Backup</h3>
+            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "12px", color: "#64748B", margin: "0 0 16px" }}>Last backup: 15 Mar 2026, 02:00 AM</p>
+            <button onClick={() => { setBackupStatus("running"); setTimeout(() => setBackupStatus("done"), 2500); }} disabled={backupStatus === "running"}
+              style={{ width: "100%", padding: "11px", borderRadius: "10px", border: "none", background: backupStatus === "done" ? "#D1FAE5" : backupStatus === "running" ? "#F1F5F9" : "linear-gradient(135deg, #3B5BDB, #6366F1)", color: backupStatus === "done" ? "#065F46" : backupStatus === "running" ? "#94A3B8" : "#fff", fontSize: "13px", fontWeight: 700, cursor: backupStatus === "running" ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+              {backupStatus === "idle" ? "🔄 Run Manual Backup" : backupStatus === "running" ? "⏳ Running Backup..." : "✅ Backup Complete"}
+            </button>
+          </div>
+          <div style={{ background: "#FEF3C7", borderRadius: "16px", padding: "20px", border: "1.5px solid #FDE68A" }}>
+            <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: "16px", color: "#92400E", margin: "0 0 6px" }}>⚠️ Danger Zone</h3>
+            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "12px", color: "#B45309", margin: "0 0 12px" }}>These actions are irreversible. Proceed with caution.</p>
+            <button onClick={() => alert("Disabled in demo mode.")} style={{ background: "#FEE2E2", color: "#991B1B", border: "1.5px solid #FCA5A5", borderRadius: "8px", padding: "9px 16px", fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>🗑️ Clear All Test Data</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Admin: Login Screen
+const AdminLogin = ({ onLogin }: { onLogin: () => void }) => {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+
+  const handleLogin = () => {
+    if (!username || !password) { setError("Please enter your credentials."); return; }
+    setLoading(true); setError("");
+    setTimeout(() => {
+      if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) { onLogin(); }
+      else { setError("Invalid username or password."); setLoading(false); }
+    }, 900);
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "linear-gradient(135deg, #0D1526 0%, #1E3A8A 100%)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+      <div style={{ background: "#fff", borderRadius: "24px", padding: "48px 44px", width: "100%", maxWidth: "420px", boxShadow: "0 40px 80px rgba(0,0,0,0.4)" }}>
+        <div style={{ textAlign: "center", marginBottom: "36px" }}>
+          <div style={{ width: 52, height: 52, borderRadius: "16px", background: "linear-gradient(135deg, #0D1526, #1E3A8A)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", margin: "0 auto 18px" }}>🔐</div>
+          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: "26px", fontWeight: 800, color: "#0F172A", margin: "0 0 6px" }}>Admin Portal</h1>
+          <p style={{ color: "#64748B", fontSize: "14px", fontFamily: "'DM Sans', sans-serif", margin: 0 }}>NoteFlow · Botswana 🇧🇼</p>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div>
+            <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#0F172A", marginBottom: "6px", fontFamily: "'DM Sans', sans-serif", textTransform: "uppercase", letterSpacing: "0.06em" }}>Username</label>
+            <input value={username} onChange={e => setUsername(e.target.value)} onKeyDown={e => e.key === "Enter" && handleLogin()} placeholder="Enter username" style={{ ...inp, background: "#fff" }} />
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#0F172A", marginBottom: "6px", fontFamily: "'DM Sans', sans-serif", textTransform: "uppercase", letterSpacing: "0.06em" }}>Password</label>
+            <div style={{ position: "relative" }}>
+              <input value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === "Enter" && handleLogin()} type={showPass ? "text" : "password"} placeholder="Enter password" style={{ ...inp, background: "#fff", paddingRight: "48px" }} />
+              <button onClick={() => setShowPass(!showPass)} style={{ position: "absolute", right: "14px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: "16px", color: "#94A3B8" }}>{showPass ? "🙈" : "👁"}</button>
+            </div>
+          </div>
+          {error && <div style={{ background: "#FEE2E2", borderRadius: "8px", padding: "10px 14px", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", color: "#991B1B", fontWeight: 600 }}>⚠️ {error}</div>}
+          <button onClick={handleLogin} disabled={loading} style={{ background: loading ? "#94A3B8" : "linear-gradient(135deg, #0D1526, #1E3A8A)", color: "#fff", border: "none", borderRadius: "12px", padding: "14px", fontSize: "15px", fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif", marginTop: "4px" }}>
+            {loading ? "Signing in..." : "Sign In →"}
+          </button>
+        </div>
+        <p style={{ textAlign: "center", fontFamily: "'DM Sans', sans-serif", fontSize: "12px", color: "#94A3B8", marginTop: "24px", marginBottom: 0 }}>Restricted to authorized administrators only</p>
+      </div>
+    </div>
+  );
+};
+
+// Admin: Full Dashboard Wrapper
+const AdminDashboard = ({ onExit }: { onExit: () => void }) => {
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [activeSection, setActiveSection] = useState("overview");
+  const [collapsed, setCollapsed] = useState(false);
+
+  if (!loggedIn) return <AdminLogin onLogin={() => setLoggedIn(true)} />;
+
+  const sectionLabels: Record<string, string> = { overview: "Overview", users: "User Management", verification: "Tutor Verification", payments: "Payment Monitoring", ratings: "Ratings Monitor", maintenance: "System Maintenance" };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 9000, display: "flex", background: "#F8FAFF" }}>
+      {/* Sidebar */}
+      <aside style={{ width: collapsed ? "64px" : "236px", background: "#0D1526", display: "flex", flexDirection: "column", transition: "width 0.25s", flexShrink: 0, overflowX: "hidden" }}>
+        <div style={{ padding: collapsed ? "18px 14px" : "22px 18px", borderBottom: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          {!collapsed && <div><div style={{ fontFamily: "'Playfair Display', serif", fontSize: "17px", fontWeight: 800, color: "#fff" }}>NoteFlow</div><div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "10px", color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Admin Portal</div></div>}
+          <button onClick={() => setCollapsed(!collapsed)} style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: "7px", width: 28, height: 28, cursor: "pointer", color: "#fff", fontSize: "12px", flexShrink: 0 }}>{collapsed ? "→" : "←"}</button>
+        </div>
+        <nav style={{ flex: 1, padding: "10px 8px" }}>
+          {adminSidebarItems.map(item => (
+            <button key={item.id} onClick={() => setActiveSection(item.id)}
+              style={{ width: "100%", display: "flex", alignItems: "center", gap: "10px", padding: collapsed ? "11px 8px" : "10px 12px", borderRadius: "9px", border: "none", background: activeSection === item.id ? "rgba(59,91,219,0.3)" : "transparent", color: activeSection === item.id ? "#93C5FD" : "rgba(255,255,255,0.55)", cursor: "pointer", fontSize: "13px", fontWeight: activeSection === item.id ? 700 : 500, fontFamily: "'DM Sans', sans-serif", textAlign: "left", marginBottom: "2px", borderLeft: activeSection === item.id ? "3px solid #3B5BDB" : "3px solid transparent", justifyContent: collapsed ? "center" : "flex-start", whiteSpace: "nowrap", overflow: "hidden" }}>
+              <span style={{ fontSize: "15px", flexShrink: 0 }}>{item.icon}</span>
+              {!collapsed && <span>{item.label}</span>}
+            </button>
+          ))}
+        </nav>
+        <div style={{ padding: collapsed ? "14px 8px" : "14px 10px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px", borderRadius: "9px", background: "rgba(255,255,255,0.06)", marginBottom: "8px" }}>
+            <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg, #F59E0B, #D97706)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "12px", fontWeight: 700, flexShrink: 0 }}>M</div>
+            {!collapsed && <div><p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "13px", fontWeight: 700, color: "#fff", margin: 0 }}>Mark</p><p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "10px", color: "rgba(255,255,255,0.4)", margin: 0 }}>Administrator</p></div>}
+          </div>
+          <button onClick={() => { setLoggedIn(false); onExit(); }} style={{ width: "100%", padding: "8px", borderRadius: "7px", border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+            {collapsed ? "↩" : "↩ Exit Admin"}
+          </button>
+        </div>
+      </aside>
+      {/* Main */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <header style={{ background: "#fff", borderBottom: "1px solid #E8EDF5", padding: "0 32px", height: "56px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+          <div>
+            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "12px", color: "#94A3B8" }}>NoteFlow Admin / </span>
+            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "12px", color: "#0F172A", fontWeight: 600 }}>{sectionLabels[activeSection]}</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "12px", color: "#94A3B8" }}>🇧🇼 {new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#22C55E" }} />
+              <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "12px", color: "#22C55E", fontWeight: 600 }}>System Online</span>
+            </div>
+          </div>
+        </header>
+        <main style={{ flex: 1, padding: "32px 36px", overflowY: "auto" }}>
+          {activeSection === "overview" && <AdminOverview />}
+          {activeSection === "users" && <AdminUserManagement />}
+          {activeSection === "verification" && <AdminVerification />}
+          {activeSection === "payments" && <AdminPayments />}
+          {activeSection === "ratings" && <AdminRatings />}
+          {activeSection === "maintenance" && <AdminMaintenance />}
+        </main>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── MAIN NOTEFLOW APP ─────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
 export default function NoteFlow() {
   const [docs, setDocs] = useState<Document[]>(initialDocs);
   const [tutors, setTutors] = useState<Tutor[]>(initialTutors);
@@ -607,6 +1107,7 @@ export default function NoteFlow() {
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [showSignIn, setShowSignIn] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
 
   const allUnis = ["All Universities", ...universities.map(u => u.short)];
   const docTypes: (DocType | "All Types")[] = ["All Types", "Notes", "Exam", "Summary", "Textbook"];
@@ -648,6 +1149,9 @@ export default function NoteFlow() {
   return (
     <div style={{ fontFamily: "'DM Sans', sans-serif", background: "#F8FAFF", minHeight: "100vh" }}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+      {/* Admin Portal — renders as full-screen overlay */}
+      {showAdmin && <AdminDashboard onExit={() => setShowAdmin(false)} />}
 
       {showSignIn && <SignInModal onSignIn={u => { setUser(u); setShowSignIn(false); }} onClose={() => setShowSignIn(false)} />}
       {selectedDoc && <DocViewer doc={docs.find(d => d.id === selectedDoc.id) || selectedDoc} allDocs={docs} user={user} onClose={() => setSelectedDoc(null)} onUpgrade={() => { setSelectedDoc(null); setActivePage("pricing"); }} onReview={handleDocReview} />}
@@ -769,12 +1273,15 @@ export default function NoteFlow() {
         </>
       )}
 
+      {/* FOOTER — Admin access hidden in copyright */}
       <footer style={{ borderTop: "1px solid #E8EDF5", marginTop: "60px", padding: "32px", textAlign: "center", color: "#94A3B8", fontSize: "13px", fontFamily: "'DM Sans', sans-serif" }}>
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
           <div style={{ width: 26, height: 26, borderRadius: "8px", background: "linear-gradient(135deg, #3B5BDB, #6366F1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px" }}>📚</div>
           <span style={{ fontFamily: "'Playfair Display', serif", fontSize: "17px", fontWeight: 700, color: "#0F172A" }}>NoteFlow</span>
         </div>
-        <p style={{ margin: 0 }}>© 2024 NoteFlow · Built for Botswana students 🇧🇼</p>
+        <p style={{ margin: 0 }}>
+          © <span onClick={() => setShowAdmin(true)} style={{ cursor: "default", userSelect: "none" }}>2024</span> NoteFlow · Built for Botswana students 🇧🇼
+        </p>
       </footer>
     </div>
   );
