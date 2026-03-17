@@ -1,1437 +1,1600 @@
 "use client";
+import React, { useState, useEffect, useRef } from "react";
 
-import React, { useState } from "react";
+// ─── FONTS ───────────────────────────────────────────────────────────────────
+const FontLink = () => (
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;0,700;0,900;1,400&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+);
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  TYPES
-// ═══════════════════════════════════════════════════════════════════════════════
-type DocType = "Notes" | "Exam" | "Summary" | "Textbook";
-type NavPage = "explore" | "universities" | "courses" | "upload" | "pricing" | "dashboard" | "tutors" | "admin";
-type UserPlan = "free" | "premium";
+// ─── TYPES ───────────────────────────────────────────────────────────────────
+type Role = "admin" | "student" | "tutor";
+type BookingStatus = "pending" | "confirmed" | "completed" | "cancelled";
+type VerifStatus = "pending" | "approved" | "rejected";
 
-interface UserObj {
-  name: string;
-  email: string;
-  avatar: string;
-  plan: UserPlan;
+interface User { id: number; name: string; email: string; role: Role; avatar: string; }
+interface TutorProfile {
+  id: number; userId: number; name: string; avatar: string; university: string;
+  subjects: string[]; qualifications: string[]; bio: string; rate: number;
+  available: boolean; rating: number; reviewCount: number; verified: VerifStatus;
+  earnings: number; joined: string;
 }
-
+interface StudentProfile {
+  id: number; userId: number; name: string; avatar: string; university: string;
+  course: string; year: string; joined: string; plan: "free" | "premium";
+}
+interface Booking {
+  id: number; studentId: number; tutorId: number; studentName: string; tutorName: string;
+  subject: string; date: string; time: string; status: BookingStatus;
+  note: string; amount: number; createdAt: string;
+}
+interface Message {
+  id: number; senderId: number; receiverId: number; senderName: string;
+  text: string; timestamp: string; read: boolean;
+}
 interface Review {
-  id: number;
-  user: string;
-  avatar: string;
-  rating: number;
-  comment: string;
-  date: string;
+  id: number; studentId: number; tutorId: number; studentName: string;
+  tutorName: string; rating: number; comment: string; date: string; flagged: boolean; hidden: boolean;
 }
-
-interface Doc {
-  id: number;
-  title: string;
-  subject: string;
-  university: string;
-  course: string;
-  pages: number;
-  downloads: number;
-  rating: number;
-  type: DocType;
-  year: string;
-  preview: string;
-  premium: boolean;
-  reviews: Review[];
-}
-
-interface Tutor {
-  id: number;
-  name: string;
-  avatar: string;
-  university: string;
-  subjects: string[];
-  rating: number;
-  reviewCount: number;
-  rate: string;
-  bio: string;
-  available: boolean;
-  reviews: Review[];
-  email?: string;
-  status?: string;
-}
-
-interface Plan {
-  id: string;
-  name: string;
-  price: string;
-  period: string;
-  saves: string | null;
-  color: string;
-}
-
-interface AdminStudent {
-  id: number;
-  name: string;
-  email: string;
-  university?: string;
-  plan?: string;
-  status?: string;
-  joined?: string;
-}
-
-interface AdminTutor {
-  id: number;
-  name: string;
-  email?: string;
-  university?: string;
-  subjects?: string[];
-  rating?: number;
-  status?: string;
-}
-
-interface Verification {
-  id: number;
-  name: string;
-  avatar: string;
-  university: string;
-  subjects: string[];
-  rate: string;
-  bio?: string;
-  status: string;
-  date: string;
-}
-
 interface Payment {
-  id: number;
-  student: string;
-  plan: string;
-  amount: number;
-  date: string;
-  method?: string;
-  status?: string;
-  month?: number;
+  id: number; studentId: number; tutorId: number; bookingId: number;
+  studentName: string; tutorName: string; amount: number; status: "completed" | "pending" | "refunded";
+  date: string; method: string;
 }
 
-interface Rating {
-  id: number;
-  user: string;
-  target: string;
-  rating: number;
-  comment: string;
-  date: string;
-  flagged?: boolean;
-  hidden?: boolean;
-}
-
-interface AdminSettings {
-  registrationEnabled: boolean;
-  paymentsEnabled: boolean;
-  tutorMarketEnabled: boolean;
-  emailNotifications: boolean;
-  autoApprove: boolean;
-  maintenanceMode: boolean;
-}
-
-interface Log {
-  id: number;
-  action: string;
-  user: string;
-  time: string;
-  type: string;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  ADMIN THEME + CREDENTIALS
-// ═══════════════════════════════════════════════════════════════════════════════
-const AC = {
-  bg:         '#0B0D1A', sidebar:   '#07080F',  card:       '#111422',
-  cardHov:    '#161B2E', border:    'rgba(255,255,255,0.07)', borderMd: 'rgba(255,255,255,0.12)',
-  accent:     '#F0A500', accentDim: 'rgba(240,165,0,0.12)',  accentBdr: 'rgba(240,165,0,0.35)',
-  text:       '#E8EDF5', textSub:   '#94A3B8',  textMuted:  '#4E5A6B',
-  success:    '#22C55E', successDim:'rgba(34,197,94,0.12)',
-  danger:     '#EF4444', dangerDim: 'rgba(239,68,68,0.12)',
-  warning:    '#F59E0B', warningDim:'rgba(245,158,11,0.12)',
-  info:       '#6366F1', infoDim:   'rgba(99,102,241,0.12)',
-};
-const AF = { head:"'Syne',sans-serif", body:"'Outfit',sans-serif", mono:"'Space Mono',monospace" };
-const ADMIN_CREDS = { username:'mark', password:'mark12345', name:'Mark' };
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  ORIGINAL NOTEFLOW DATA
-// ═══════════════════════════════════════════════════════════════════════════════
-const universities = [
-  { name:"Botswana Accountancy College", short:"BAC",        location:"Gaborone", emoji:"🏫", courses:["Computer Systems Engineering","Accounting & Finance","Business Administration","Information Technology"] },
-  { name:"University of Botswana",        short:"UB",         location:"Gaborone", emoji:"🎓", courses:["Computer Science","Law","Medicine","Engineering","Economics","Education"] },
-  { name:"BIUST",                          short:"BIUST",      location:"Palapye",  emoji:"🔬", courses:["Civil Engineering","Electrical Engineering","Computer Science","Environmental Science","Mining Engineering"] },
-  { name:"Botho University",              short:"Botho",      location:"Gaborone", emoji:"📘", courses:["Nursing","Business Computing","Project Management","Hospitality Management","IT Management"] },
-  { name:"Limkokwing University",         short:"Limkokwing", location:"Gaborone", emoji:"🎨", courses:["Graphic Design","Fashion Design","Mass Communication","Architecture","Film & Animation"] },
-  { name:"Ba Isago University",           short:"Ba Isago",   location:"Gaborone", emoji:"📚", courses:["Accounting","Human Resources","Marketing","Supply Chain Management","Early Childhood Education"] },
-  { name:"Botswana Open University",      short:"BOU",        location:"Gaborone", emoji:"🌐", courses:["Distance Education","Public Administration","Development Studies","Agriculture","Education Management"] },
-];
-
-const initialDocs: Doc[] = [
-  { id:1,  title:"Introduction to Java - Full Notes",            subject:"Computer Systems Engineering", university:"Botswana Accountancy College", course:"Computer Systems Engineering", pages:45,  downloads:1230, rating:4.8, type:"Notes",    year:"1st Year", preview:"OOP concepts, classes, objects, inheritance, polymorphism...",        premium:false, reviews:[{id:1,user:"Kabo M.",   avatar:"KM",rating:5,comment:"Extremely helpful for my Java exam! Covered everything perfectly.",    date:"Feb 2024"},{id:2,user:"Lesedi T.", avatar:"LT",rating:4,comment:"Great notes but could use more code examples.",                    date:"Jan 2024"}] },
-  { id:2,  title:"Mobile Application Development - Android Basics", subject:"Computer Systems Engineering", university:"Botswana Accountancy College", course:"Computer Systems Engineering", pages:38,  downloads:980,  rating:4.7, type:"Notes",    year:"2nd Year", preview:"Android Studio, XML layouts, Activities, Intents, APIs...",            premium:true,  reviews:[{id:1,user:"Thato K.",  avatar:"TK",rating:5,comment:"Best Android notes I've found. Saved my project!",                  date:"Mar 2024"}] },
-  { id:3,  title:"Database Systems Exam 2023",                   subject:"Computer Systems Engineering", university:"Botswana Accountancy College", course:"Computer Systems Engineering", pages:12,  downloads:2100, rating:4.9, type:"Exam",     year:"2nd Year", preview:"SQL queries, normalization, ER diagrams, transactions...",              premium:true,  reviews:[{id:1,user:"Neo B.",    avatar:"NB",rating:5,comment:"Exact same questions came up in my exam. 10/10.",               date:"Nov 2023"},{id:2,user:"Mpho S.",  avatar:"MS",rating:5,comment:"Essential for exam prep. Highly recommend!",                    date:"Oct 2023"}] },
-  { id:4,  title:"Web Development Summary - HTML, CSS & JS",     subject:"Computer Systems Engineering", university:"Botswana Accountancy College", course:"Computer Systems Engineering", pages:22,  downloads:1540, rating:4.6, type:"Summary",  year:"1st Year", preview:"HTML5 structure, CSS flexbox/grid, JavaScript DOM manipulation...",   premium:false, reviews:[{id:1,user:"Boago R.",  avatar:"BR",rating:4,comment:"Clean and well organized summary.",                            date:"Mar 2024"}] },
-  { id:5,  title:"Computer Networks Textbook - Full Edition",    subject:"Computer Systems Engineering", university:"Botswana Accountancy College", course:"Computer Systems Engineering", pages:320, downloads:870,  rating:4.5, type:"Textbook", year:"3rd Year", preview:"OSI model, TCP/IP, routing protocols, network security...",              premium:true,  reviews:[] },
-  { id:6,  title:"Financial Accounting Principles - Complete Notes", subject:"Accounting & Finance",     university:"Botswana Accountancy College", course:"Accounting & Finance",          pages:60,  downloads:3200, rating:4.9, type:"Notes",    year:"1st Year", preview:"Double entry, trial balance, income statement, balance sheet...",       premium:false, reviews:[{id:1,user:"Tshego M.", avatar:"TM",rating:5,comment:"These notes are a lifesaver. Very clear explanations.",            date:"Apr 2024"}] },
-  { id:7,  title:"Botswana Taxation Law - Summary",              subject:"Accounting & Finance",        university:"Botswana Accountancy College", course:"Accounting & Finance",          pages:30,  downloads:1890, rating:4.7, type:"Summary",  year:"3rd Year", preview:"BURS regulations, VAT, PAYE, corporate tax, withholding tax...",        premium:true,  reviews:[] },
-  { id:8,  title:"Data Structures & Algorithms - UB Notes",      subject:"Computer Science",            university:"University of Botswana",       course:"Computer Science",              pages:48,  downloads:2750, rating:4.8, type:"Notes",    year:"2nd Year", preview:"Arrays, linked lists, trees, graphs, sorting algorithms, Big O...",    premium:false, reviews:[{id:1,user:"Oratile N.",avatar:"ON",rating:5,comment:"Best DSA notes for UB students!",                               date:"Feb 2024"}] },
-  { id:9,  title:"Operating Systems Past Paper Pack 2019-2023",  subject:"Computer Science",            university:"University of Botswana",       course:"Computer Science",              pages:35,  downloads:3100, rating:4.9, type:"Exam",     year:"3rd Year", preview:"Process management, memory management, file systems, scheduling...",   premium:true,  reviews:[{id:1,user:"Kagiso P.", avatar:"KP",rating:5,comment:"5 years of past papers in one place. Incredible.",               date:"Jan 2024"}] },
-  { id:10, title:"Constitutional Law of Botswana - Full Notes",  subject:"Law",                         university:"University of Botswana",       course:"Law",                           pages:70,  downloads:2300, rating:4.7, type:"Notes",    year:"2nd Year", preview:"Constitution of Botswana, Bill of Rights, separation of powers...",    premium:false, reviews:[{id:1,user:"Amogelang D.",avatar:"AD",rating:4,comment:"Very thorough, covers all the key cases.",                    date:"Mar 2024"}] },
-  { id:11, title:"Thermodynamics - Engineering Notes",           subject:"Civil Engineering",           university:"BIUST",                        course:"Civil Engineering",             pages:55,  downloads:1100, rating:4.6, type:"Notes",    year:"2nd Year", preview:"Laws of thermodynamics, heat transfer, entropy, Carnot cycle...",      premium:false, reviews:[] },
-  { id:12, title:"Nursing Fundamentals - Anatomy & Physiology",  subject:"Nursing",                     university:"Botho University",            course:"Nursing",                       pages:80,  downloads:2900, rating:4.9, type:"Notes",    year:"1st Year", preview:"Human body systems, homeostasis, cell biology, organ functions...",    premium:false, reviews:[{id:1,user:"Gaone K.",  avatar:"GK",rating:5,comment:"Perfect for 1st year nursing. Very detailed!",                 date:"Apr 2024"}] },
-  { id:13, title:"Graphic Design Principles - Visual Notes",     subject:"Graphic Design",              university:"Limkokwing University",        course:"Graphic Design",                pages:33,  downloads:990,  rating:4.6, type:"Notes",    year:"1st Year", preview:"Typography, color theory, composition, Adobe Illustrator basics...",  premium:false, reviews:[] },
-];
-
-const initialTutors: Tutor[] = [
-  { id:1, name:"Keabetswe Molefe",  avatar:"KM", university:"University of Botswana",       subjects:["Computer Science","Data Structures","Algorithms"],       rating:4.9, reviewCount:34, rate:"P80/hr", bio:"3rd year CS student at UB. Tutored 40+ students. Specializes in making complex algorithms easy to understand.", available:true,  reviews:[{id:1,user:"Thato N.",  avatar:"TN",rating:5,comment:"Keabo explained binary trees in a way my lecturer never could. Highly recommend!",date:"Mar 2024"},{id:2,user:"Mpho R.",   avatar:"MR",rating:5,comment:"Very patient and knowledgeable. Worth every pula.",date:"Feb 2024"}] },
-  { id:2, name:"Naledi Sithole",    avatar:"NS", university:"Botswana Accountancy College", subjects:["Accounting","Financial Reporting","Taxation"],            rating:4.8, reviewCount:28, rate:"P70/hr", bio:"BAC Accounting finalist with distinctions. I break down complex financial concepts into simple, exam-ready notes.", available:true,  reviews:[{id:1,user:"Boago M.",  avatar:"BM",rating:5,comment:"Naledi helped me go from failing to distinction in 3 weeks!",date:"Apr 2024"},{id:2,user:"Kabo T.",   avatar:"KT",rating:4,comment:"Great tutor, very well prepared for every session.",date:"Mar 2024"}] },
-  { id:3, name:"Tshepiso Ramotswe", avatar:"TR", university:"BIUST",                        subjects:["Electrical Engineering","Circuit Analysis","Mathematics"], rating:4.7, reviewCount:19, rate:"P90/hr", bio:"Engineering student at BIUST. Top of my class in circuits and maths. I make engineering approachable for all levels.", available:false, reviews:[{id:1,user:"Neo K.",    avatar:"NK",rating:5,comment:"Best engineering tutor in Botswana. Period.",date:"Feb 2024"}] },
-  { id:4, name:"Onkabetse Dithebe", avatar:"OD", university:"University of Botswana",       subjects:["Law","Constitutional Law","Contract Law"],                rating:4.9, reviewCount:22, rate:"P85/hr", bio:"UB Law student in final year. I help students understand Botswana law cases and how to write high-scoring essays.", available:true,  reviews:[{id:1,user:"Lesego P.", avatar:"LP",rating:5,comment:"Onka's essay framework got me an A in constitutional law!",date:"Apr 2024"},{id:2,user:"Refilwe S.",avatar:"RS",rating:5,comment:"Very knowledgeable. Made contract law click for me.",date:"Mar 2024"}] },
-  { id:5, name:"Goabaone Seretse",  avatar:"GS", university:"Botho University",             subjects:["Nursing","Anatomy","Pharmacology"],                       rating:4.8, reviewCount:15, rate:"P75/hr", bio:"Final year nursing student with clinical experience. I help fellow nursing students with theory and practical exam prep.", available:true,  reviews:[{id:1,user:"Gaone M.",  avatar:"GM",rating:5,comment:"Goab's anatomy sessions saved my semester. So helpful!",date:"Mar 2024"}] },
-  { id:6, name:"Lorato Kgosi",      avatar:"LK", university:"Limkokwing University",        subjects:["Graphic Design","UI/UX","Branding"],                      rating:4.6, reviewCount:11, rate:"P65/hr", bio:"Creative design student at Limkokwing. I teach design principles, Adobe tools and how to build a strong portfolio.", available:true,  reviews:[{id:1,user:"Botho K.",  avatar:"BK",rating:4,comment:"Really helpful for design theory and Adobe tips.",date:"Feb 2024"}] },
-];
-
-const typeColors: Record<DocType, { bg: string; text: string }> = {
-  Notes:    { bg:"#EAF3FF", text:"#2563EB" },
-  Exam:     { bg:"#FFF0EA", text:"#C2410C" },
-  Summary:  { bg:"#EAFAF1", text:"#15803D" },
-  Textbook: { bg:"#F5F0FF", text:"#7C3AED" },
+// ─── THEME ───────────────────────────────────────────────────────────────────
+const T = {
+  // Student theme: warm cream + deep teal
+  student: {
+    bg: "#FAFAF7", sidebar: "#1A2E2A", card: "#FFFFFF", border: "#E8EAE3",
+    accent: "#2D6A4F", accentLight: "#D8F3DC", text: "#1A1A18", textSub: "#6B7280",
+    textMuted: "#9CA3AF", success: "#059669", danger: "#DC2626", warning: "#D97706",
+    gradient: "linear-gradient(135deg,#2D6A4F,#52B788)",
+  },
+  // Tutor theme: dark navy + gold
+  tutor: {
+    bg: "#0D0F1A", sidebar: "#080910", card: "#13162A", border: "rgba(255,255,255,0.08)",
+    accent: "#F4A228", accentLight: "rgba(244,162,40,0.12)", text: "#F0F2FF", textSub: "#8892B0",
+    textMuted: "#4A5568", success: "#43D9AD", danger: "#FF6B6B", warning: "#F4A228",
+    gradient: "linear-gradient(135deg,#F4A228,#E07B00)",
+  },
+  // Admin theme: slate + electric blue
+  admin: {
+    bg: "#F1F5F9", sidebar: "#0F172A", card: "#FFFFFF", border: "#E2E8F0",
+    accent: "#3B82F6", accentLight: "#EFF6FF", text: "#0F172A", textSub: "#475569",
+    textMuted: "#94A3B8", success: "#10B981", danger: "#EF4444", warning: "#F59E0B",
+    gradient: "linear-gradient(135deg,#3B82F6,#6366F1)",
+  },
 };
 
-const PLANS: Plan[] = [
-  { id:"monthly",  name:"Monthly",      price:"P89",  period:"/month",   saves:null,      color:"#3B5BDB" },
-  { id:"semester", name:"Per Semester", price:"P199", period:"/6 months",saves:"Save 55%", color:"#7C3AED" },
-  { id:"annual",   name:"Annual",       price:"P299", period:"/year",    saves:"Save 72%", color:"#059669" },
-];
+const F = { display: "'Fraunces',serif", body: "'DM Sans',sans-serif", mono: "'JetBrains Mono',monospace" };
 
-// Fix boxSizing type errors by using CSSProperties-typed style objects
-const inp: React.CSSProperties = { width:"100%",padding:"12px 14px",borderRadius:"10px",border:"1.5px solid #CBD5E1",fontSize:"14px",fontFamily:"'DM Sans',sans-serif",outline:"none",color:"#0F172A",background:"#F8FAFF",boxSizing:"border-box" };
-const inputStyle: React.CSSProperties = { width:"100%",padding:"13px 16px",borderRadius:"10px",border:"1.5px solid #CBD5E1",fontSize:"14px",fontFamily:"'DM Sans',sans-serif",outline:"none",color:"#0F172A",background:"#FFFFFF",boxSizing:"border-box" };
-const labelStyle: React.CSSProperties = { display:"block",fontWeight:700,fontSize:"13px",color:"#0F172A",marginBottom:"8px",fontFamily:"'DM Sans',sans-serif",textTransform:"uppercase",letterSpacing:"0.04em" };
+// ─── SHARED UTILITIES ────────────────────────────────────────────────────────
+const Avatar = ({ initials, size = 40, gradient = "linear-gradient(135deg,#2D6A4F,#52B788)" }: { initials: string; size?: number; gradient?: string }) => (
+  <div style={{ width: size, height: size, borderRadius: "50%", background: gradient, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: size * 0.35, fontWeight: 700, fontFamily: F.body, flexShrink: 0 }}>{initials}</div>
+);
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  ORIGINAL NOTEFLOW COMPONENTS
-// ═══════════════════════════════════════════════════════════════════════════════
+const Badge = ({ label, color, bg }: { label: string; color: string; bg: string }) => (
+  <span style={{ background: bg, color, fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20, fontFamily: F.body, whiteSpace: "nowrap" }}>{label}</span>
+);
 
-const Stars = ({ rating, size = 13 }: { rating: number; size?: number }) => (
-  <span style={{ color:"#F59E0B",fontSize:`${size}px`,fontWeight:600 }}>
-    {"★".repeat(Math.floor(rating))}{"☆".repeat(5-Math.floor(rating))}
-    <span style={{ color:"#64748B",marginLeft:"4px",fontFamily:"'DM Sans',sans-serif" }}>{rating}</span>
+const StarRow = ({ rating, size = 13 }: { rating: number; size?: number }) => (
+  <span style={{ color: "#F59E0B", fontSize: size }}>
+    {"★".repeat(Math.floor(rating))}{"☆".repeat(5 - Math.floor(rating))}
+    <span style={{ color: "#94A3B8", marginLeft: 4, fontFamily: F.body, fontSize: size - 1 }}>{rating.toFixed(1)}</span>
   </span>
 );
 
 const StarPicker = ({ value, onChange }: { value: number; onChange: (n: number) => void }) => {
-  const [hovered,setHovered] = useState(0);
+  const [hov, setHov] = useState(0);
   return (
-    <div style={{ display:"flex",gap:"4px" }}>
-      {[1,2,3,4,5].map(n=>(
-        <span key={n} onMouseEnter={()=>setHovered(n)} onMouseLeave={()=>setHovered(0)} onClick={()=>onChange(n)}
-          style={{ fontSize:"28px",cursor:"pointer",color:n<=(hovered||value)?"#F59E0B":"#E2E8F0",transition:"color 0.1s" }}>★</span>
+    <div style={{ display: "flex", gap: 4 }}>
+      {[1,2,3,4,5].map(n => (
+        <span key={n} onMouseEnter={() => setHov(n)} onMouseLeave={() => setHov(0)} onClick={() => onChange(n)}
+          style={{ fontSize: 28, cursor: "pointer", color: n <= (hov || value) ? "#F59E0B" : "#E2E8F0", transition: "color .1s" }}>★</span>
       ))}
     </div>
   );
 };
 
-const ReviewCard = ({ review }: { review: Review }) => (
-  <div style={{ background:"#F8FAFF",borderRadius:"12px",padding:"16px 18px",border:"1px solid #E8EDF5" }}>
-    <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px" }}>
-      <div style={{ display:"flex",alignItems:"center",gap:"10px" }}>
-        <div style={{ width:32,height:32,borderRadius:"50%",background:"linear-gradient(135deg,#3B5BDB,#6366F1)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:"11px",fontWeight:700,fontFamily:"'DM Sans',sans-serif" }}>{review.avatar}</div>
-        <span style={{ fontWeight:600,fontSize:"14px",color:"#0F172A",fontFamily:"'DM Sans',sans-serif" }}>{review.user}</span>
-      </div>
-      <div style={{ display:"flex",alignItems:"center",gap:"8px" }}>
-        <Stars rating={review.rating} />
-        <span style={{ color:"#94A3B8",fontSize:"12px",fontFamily:"'DM Sans',sans-serif" }}>{review.date}</span>
-      </div>
-    </div>
-    <p style={{ margin:0,fontSize:"13px",color:"#475569",fontFamily:"'DM Sans',sans-serif",lineHeight:1.6 }}>{review.comment}</p>
-  </div>
-);
+// ─── INITIAL STATE (empty — admin adds users, tutors register, students sign up) ─
+const ADMIN_USER: User = { id: 0, name: "Mark", email: "mark@noteflow.bw", role: "admin", avatar: "MK" };
 
-const ReviewForm = ({ onSubmit, onCancel }: { onSubmit: (rating: number, comment: string) => void; onCancel: () => void }) => {
-  const [rating,setRating] = useState(0);
-  const [comment,setComment] = useState("");
-  return (
-    <div style={{ background:"#fff",border:"1.5px solid #3B5BDB",borderRadius:"14px",padding:"20px" }}>
-      <p style={{ margin:"0 0 10px",fontWeight:700,fontSize:"14px",color:"#0F172A",fontFamily:"'DM Sans',sans-serif" }}>Your Rating</p>
-      <StarPicker value={rating} onChange={setRating} />
-      <textarea value={comment} onChange={e=>setComment(e.target.value)} placeholder="Share your thoughts about this document..." rows={3}
-        style={{ ...inputStyle,marginTop:"14px",resize:"vertical",lineHeight:1.5 }} />
-      <div style={{ display:"flex",gap:"10px",marginTop:"12px" }}>
-        <button onClick={()=>{ if(rating&&comment)onSubmit(rating,comment); else alert("Please give a rating and write a comment."); }}
-          style={{ background:"linear-gradient(135deg,#3B5BDB,#6366F1)",color:"#fff",border:"none",borderRadius:"10px",padding:"10px 20px",fontSize:"14px",fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>Submit Review</button>
-        <button onClick={onCancel} style={{ background:"#F1F5F9",color:"#475569",border:"none",borderRadius:"10px",padding:"10px 20px",fontSize:"14px",fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>Cancel</button>
-      </div>
-    </div>
+// ─── ROOT APP ─────────────────────────────────────────────────────────────────
+export default function App() {
+  const [screen, setScreen] = useState<"landing" | "login" | "dashboard">("landing");
+  const [loginRole, setLoginRole] = useState<Role>("student");
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  // Global state
+  const [tutors, setTutors] = useState<TutorProfile[]>([]);
+  const [students, setStudents] = useState<StudentProfile[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+
+  const handleLogin = (user: User) => { setCurrentUser(user); setScreen("dashboard"); };
+  const handleLogout = () => { setCurrentUser(null); setScreen("landing"); };
+
+  if (screen === "landing") return (
+    <>
+      <FontLink />
+      <LandingPage onChooseRole={(role) => { setLoginRole(role); setScreen("login"); }} />
+    </>
   );
-};
 
-const DocViewer = ({ doc, allDocs, user, onClose, onUpgrade, onReview }: {
-  doc: Doc; allDocs: Doc[]; user: UserObj | null;
-  onClose: () => void; onUpgrade: () => void; onReview: (docId: number, rating: number, comment: string) => void;
-}) => {
-  const [showReviewForm,setShowReviewForm] = useState(false);
-  const [timeLeft,setTimeLeft] = useState(1800);
-  const canAccess = !doc.premium || user?.plan === "premium";
-  const recommended = allDocs.filter(d=>d.id!==doc.id&&(d.course===doc.course||d.university===doc.university)).slice(0,3);
-
-  React.useEffect(()=>{
-    if(!canAccess||user?.plan!=="free") return;
-    const t = setInterval(()=>setTimeLeft(p=>{ if(p<=1){clearInterval(t);onClose();return 0;} return p-1; }),1000);
-    return ()=>clearInterval(t);
-  },[canAccess, onClose, user?.plan]);
-
-  const mins = Math.floor(timeLeft/60).toString().padStart(2,"0");
-  const secs = (timeLeft%60).toString().padStart(2,"0");
-  const avgRating = doc.reviews.length ? (doc.reviews.reduce((a,r)=>a+r.rating,0)/doc.reviews.length).toFixed(1) : doc.rating.toFixed(1);
-
-  return (
-    <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px" }} onClick={onClose}>
-      <div style={{ background:"#fff",borderRadius:"24px",width:"100%",maxWidth:"820px",maxHeight:"92vh",overflowY:"auto" }} onClick={e=>e.stopPropagation()}>
-        <div style={{ padding:"24px 28px 18px",borderBottom:"1px solid #E8EDF5",display:"flex",justifyContent:"space-between",alignItems:"flex-start" }}>
-          <div style={{ flex:1,marginRight:"16px" }}>
-            <div style={{ display:"flex",gap:"8px",marginBottom:"8px",flexWrap:"wrap" }}>
-              <span style={{ background:typeColors[doc.type].bg,color:typeColors[doc.type].text,fontSize:"11px",fontWeight:700,padding:"4px 10px",borderRadius:"20px",textTransform:"uppercase",fontFamily:"'DM Sans',sans-serif" }}>{doc.type}</span>
-              {doc.premium&&<span style={{ background:"#FFF8E1",color:"#B45309",fontSize:"11px",fontWeight:700,padding:"4px 10px",borderRadius:"20px",fontFamily:"'DM Sans',sans-serif" }}>💎 Premium</span>}
-              <span style={{ color:"#94A3B8",fontSize:"12px",fontFamily:"'DM Sans',sans-serif" }}>{doc.year}</span>
-            </div>
-            <h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:"20px",color:"#0F172A",margin:"0 0 6px" }}>{doc.title}</h2>
-            <div style={{ display:"flex",alignItems:"center",gap:"12px",flexWrap:"wrap" }}>
-              <span style={{ color:"#64748B",fontSize:"13px",fontFamily:"'DM Sans',sans-serif" }}>🎓 {doc.university}</span>
-              <Stars rating={parseFloat(avgRating)} />
-              <span style={{ color:"#94A3B8",fontSize:"12px",fontFamily:"'DM Sans',sans-serif" }}>({doc.reviews.length} reviews)</span>
-            </div>
-          </div>
-          <button onClick={onClose} style={{ background:"#F1F5F9",border:"none",borderRadius:"10px",width:"36px",height:"36px",fontSize:"16px",cursor:"pointer",flexShrink:0 }}>✕</button>
-        </div>
-        {canAccess&&user?.plan==="free"&&(
-          <div style={{ background:"#FFF8E1",padding:"10px 28px",display:"flex",alignItems:"center",gap:"8px",borderBottom:"1px solid #FDE68A" }}>
-            <span>⏱️</span>
-            <p style={{ margin:0,fontSize:"13px",color:"#B45309",fontFamily:"'DM Sans',sans-serif" }}>
-              Free access: <strong>{mins}:{secs}</strong> remaining — <span style={{ color:"#3B5BDB",cursor:"pointer",fontWeight:600 }} onClick={onUpgrade}>Upgrade for unlimited</span>
-            </p>
-          </div>
-        )}
-        {!canAccess?(
-          <div style={{ padding:"48px 28px",textAlign:"center" }}>
-            <div style={{ fontSize:"56px",marginBottom:"16px" }}>💎</div>
-            <h3 style={{ fontFamily:"'Playfair Display',serif",fontSize:"24px",color:"#0F172A",margin:"0 0 8px" }}>Premium Content</h3>
-            <p style={{ color:"#64748B",fontFamily:"'DM Sans',sans-serif",maxWidth:"380px",margin:"0 auto 24px",lineHeight:1.6 }}>Subscribe to access this {doc.type.toLowerCase()} and all premium materials.</p>
-            <button onClick={onUpgrade} style={{ background:"linear-gradient(135deg,#3B5BDB,#6366F1)",color:"#fff",border:"none",borderRadius:"12px",padding:"13px 32px",fontSize:"15px",fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>View Plans →</button>
-          </div>
-        ):(
-          <>
-            <div style={{ padding:"14px 28px",background:"#F8FAFF",borderBottom:"1px solid #E8EDF5",display:"flex",gap:"24px",flexWrap:"wrap" }}>
-              {([["📄",`${doc.pages} pages`],["👁️",`${doc.downloads.toLocaleString()} views`],["📚",doc.subject]] as [string,string][]).map(([icon,label])=>(
-                <div key={label} style={{ display:"flex",alignItems:"center",gap:"6px",color:"#475569",fontSize:"13px",fontFamily:"'DM Sans',sans-serif" }}><span>{icon}</span><span>{label}</span></div>
-              ))}
-            </div>
-            <div style={{ padding:"24px 28px" }}>
-              <h4 style={{ fontFamily:"'DM Sans',sans-serif",fontSize:"12px",fontWeight:700,color:"#94A3B8",textTransform:"uppercase",letterSpacing:"0.08em",margin:"0 0 14px" }}>Document Preview</h4>
-              <div style={{ display:"flex",flexDirection:"column",gap:"10px" }}>
-                {Array.from({length:Math.min(doc.pages,4)},(_,i)=>i+1).map(page=>(
-                  <div key={page} style={{ background:"#F8FAFF",border:"1px solid #E8EDF5",borderRadius:"12px",padding:"16px 20px" }}>
-                    <span style={{ fontSize:"11px",fontWeight:700,color:"#94A3B8",fontFamily:"'DM Sans',sans-serif",textTransform:"uppercase" }}>Page {page}</span>
-                    <div style={{ display:"flex",flexDirection:"column",gap:"6px",marginTop:"10px" }}>
-                      {[0.9,0.7,0.85,0.6].map((w,i)=><div key={i} style={{ height:"9px",background:"#E2E8F0",borderRadius:"4px",width:`${w*100}%` }}/>)}
-                      {page===1&&<div style={{ marginTop:"8px",padding:"10px 14px",background:"#EAF3FF",borderRadius:"8px",borderLeft:"3px solid #3B5BDB" }}>
-                        <p style={{ margin:0,fontSize:"13px",color:"#1E3A8A",fontFamily:"'DM Sans',sans-serif",lineHeight:1.6 }}><strong>Topics: </strong>{doc.preview}</p>
-                      </div>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div style={{ padding:"0 28px 24px" }}>
-              <div style={{ borderTop:"1px solid #E8EDF5",paddingTop:"24px" }}>
-                <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"20px",flexWrap:"wrap",gap:"12px" }}>
-                  <div>
-                    <h4 style={{ fontFamily:"'Playfair Display',serif",fontSize:"18px",color:"#0F172A",margin:"0 0 4px" }}>Ratings & Reviews</h4>
-                    <div style={{ display:"flex",alignItems:"center",gap:"10px" }}>
-                      <span style={{ fontSize:"36px",fontWeight:800,color:"#0F172A",fontFamily:"'Playfair Display',serif" }}>{avgRating}</span>
-                      <div><Stars rating={parseFloat(avgRating)} size={16}/><p style={{ margin:"2px 0 0",fontSize:"12px",color:"#64748B",fontFamily:"'DM Sans',sans-serif" }}>{doc.reviews.length} review{doc.reviews.length!==1?"s":""}</p></div>
-                    </div>
-                  </div>
-                  {user&&!showReviewForm&&(
-                    <button onClick={()=>setShowReviewForm(true)} style={{ background:"linear-gradient(135deg,#3B5BDB,#6366F1)",color:"#fff",border:"none",borderRadius:"10px",padding:"10px 20px",fontSize:"14px",fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>✍️ Write a Review</button>
-                  )}
-                  {!user&&<p style={{ fontSize:"13px",color:"#64748B",fontFamily:"'DM Sans',sans-serif",margin:0 }}>Sign in to leave a review</p>}
-                </div>
-                {showReviewForm&&(
-                  <div style={{ marginBottom:"20px" }}>
-                    <ReviewForm onSubmit={(r,c)=>{ onReview(doc.id,r,c); setShowReviewForm(false); }} onCancel={()=>setShowReviewForm(false)} />
-                  </div>
-                )}
-                <div style={{ display:"flex",flexDirection:"column",gap:"12px" }}>
-                  {doc.reviews.length>0?doc.reviews.map(review=><ReviewCard key={review.id} review={review}/>):(
-                    <div style={{ textAlign:"center",padding:"24px",color:"#94A3B8",fontFamily:"'DM Sans',sans-serif" }}>
-                      <p style={{ fontSize:"24px",margin:"0 0 8px" }}>✍️</p><p style={{ fontSize:"14px",margin:0 }}>No reviews yet. Be the first to review!</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-            {recommended.length>0&&(
-              <div style={{ padding:"0 28px 28px" }}>
-                <div style={{ borderTop:"1px solid #E8EDF5",paddingTop:"24px" }}>
-                  <h4 style={{ fontFamily:"'Playfair Display',serif",fontSize:"18px",color:"#0F172A",margin:"0 0 16px" }}>📖 You Might Also Like</h4>
-                  <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:"12px" }}>
-                    {recommended.map(rec=>(
-                      <div key={rec.id} style={{ background:"#F8FAFF",borderRadius:"12px",padding:"16px",border:"1px solid #E8EDF5",cursor:"pointer" }}
-                        onClick={()=>{ onClose(); }}>
-                        <div style={{ display:"flex",gap:"8px",marginBottom:"8px" }}>
-                          <span style={{ background:typeColors[rec.type].bg,color:typeColors[rec.type].text,fontSize:"10px",fontWeight:700,padding:"3px 8px",borderRadius:"20px",fontFamily:"'DM Sans',sans-serif" }}>{rec.type}</span>
-                          {rec.premium&&<span style={{ fontSize:"10px" }}>💎</span>}
-                        </div>
-                        <p style={{ fontFamily:"'Playfair Display',serif",fontSize:"13px",fontWeight:700,color:"#0F172A",margin:"0 0 6px",lineHeight:1.3 }}>{rec.title}</p>
-                        <Stars rating={rec.rating}/>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-            <div style={{ padding:"18px 28px",borderTop:"1px solid #E8EDF5",display:"flex",gap:"12px",justifyContent:"flex-end" }}>
-              <button onClick={onClose} style={{ padding:"10px 20px",borderRadius:"10px",border:"1.5px solid #E2E8F0",background:"#fff",color:"#475569",fontSize:"14px",fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>Close</button>
-              {user?.plan==="premium"&&<button style={{ padding:"10px 20px",borderRadius:"10px",border:"none",background:"linear-gradient(135deg,#3B5BDB,#6366F1)",color:"#fff",fontSize:"14px",fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>⬇️ Download PDF</button>}
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+  if (screen === "login") return (
+    <>
+      <FontLink />
+      <LoginPage role={loginRole} onLogin={handleLogin} onBack={() => setScreen("landing")}
+        tutors={tutors} students={students} setTutors={setTutors} setStudents={setStudents} />
+    </>
   );
-};
 
-const TutorCard = ({ tutor, onOpen }: { tutor: Tutor; onOpen: (t: Tutor) => void }) => {
-  const [hovered,setHovered] = useState(false);
+  if (!currentUser) return null;
+
+  const sharedProps = { tutors, setTutors, students, setStudents, bookings, setBookings, messages, setMessages, reviews, setReviews, payments, setPayments, onLogout: handleLogout };
+
   return (
-    <div onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)} onClick={()=>onOpen(tutor)}
-      style={{ background:"#fff",borderRadius:"16px",padding:"24px",border:hovered?"1.5px solid #3B5BDB":"1.5px solid #E8EDF5",boxShadow:hovered?"0 8px 32px rgba(59,91,219,0.10)":"0 2px 8px rgba(0,0,0,0.04)",cursor:"pointer",transition:"all 0.2s",transform:hovered?"translateY(-3px)":"none" }}>
-      <div style={{ display:"flex",alignItems:"center",gap:"14px",marginBottom:"14px" }}>
-        <div style={{ width:52,height:52,borderRadius:"50%",background:"linear-gradient(135deg,#3B5BDB,#6366F1)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:"16px",fontWeight:700,fontFamily:"'DM Sans',sans-serif",flexShrink:0 }}>{tutor.avatar}</div>
-        <div style={{ flex:1 }}>
-          <h3 style={{ fontFamily:"'Playfair Display',serif",fontSize:"16px",color:"#0F172A",margin:"0 0 2px" }}>{tutor.name}</h3>
-          <p style={{ color:"#64748B",fontSize:"12px",margin:0,fontFamily:"'DM Sans',sans-serif" }}>🎓 {tutor.university}</p>
-        </div>
-        <span style={{ background:tutor.available?"#EAFAF1":"#FEF2F2",color:tutor.available?"#15803D":"#DC2626",fontSize:"11px",fontWeight:700,padding:"4px 10px",borderRadius:"20px",fontFamily:"'DM Sans',sans-serif",flexShrink:0 }}>{tutor.available?"✅ Available":"❌ Busy"}</span>
-      </div>
-      <p style={{ color:"#64748B",fontSize:"13px",margin:"0 0 14px",fontFamily:"'DM Sans',sans-serif",lineHeight:1.5 }}>{tutor.bio}</p>
-      <div style={{ display:"flex",flexWrap:"wrap",gap:"6px",marginBottom:"14px" }}>
-        {tutor.subjects.map(s=><span key={s} style={{ background:"#EAF3FF",color:"#2563EB",fontSize:"11px",fontWeight:600,padding:"3px 10px",borderRadius:"20px",fontFamily:"'DM Sans',sans-serif" }}>{s}</span>)}
-      </div>
-      <div style={{ borderTop:"1px solid #F1F5F9",paddingTop:"12px",display:"flex",justifyContent:"space-between",alignItems:"center" }}>
-        <div style={{ display:"flex",alignItems:"center",gap:"8px" }}><Stars rating={tutor.rating}/><span style={{ color:"#94A3B8",fontSize:"12px",fontFamily:"'DM Sans',sans-serif" }}>({tutor.reviewCount})</span></div>
-        <span style={{ fontFamily:"'Playfair Display',serif",fontSize:"17px",fontWeight:700,color:"#3B5BDB" }}>{tutor.rate}</span>
-      </div>
-    </div>
+    <>
+      <FontLink />
+      {currentUser.role === "student" && <StudentDashboard user={currentUser} {...sharedProps} />}
+      {currentUser.role === "tutor"   && <TutorDashboard   user={currentUser} {...sharedProps} />}
+      {currentUser.role === "admin"   && <AdminDashboard   user={currentUser} {...sharedProps} />}
+    </>
   );
-};
+}
 
-const TutorViewer = ({ tutor, user, onClose, onSignIn, onReview }: {
-  tutor: Tutor; user: UserObj | null;
-  onClose: () => void; onSignIn: () => void; onReview: (tutorId: number, rating: number, comment: string) => void;
-}) => {
-  const [showReviewForm,setShowReviewForm] = useState(false);
-  const [showBook,setShowBook] = useState(false);
-  const [booked,setBooked] = useState(false);
-  const avg = tutor.reviews.length ? (tutor.reviews.reduce((a,r)=>a+r.rating,0)/tutor.reviews.length).toFixed(1) : tutor.rating.toFixed(1);
+// ═══════════════════════════════════════════════════════════════════════════════
+// LANDING PAGE
+// ═══════════════════════════════════════════════════════════════════════════════
+function LandingPage({ onChooseRole }: { onChooseRole: (r: Role) => void }) {
+  const roles: { role: Role; icon: string; title: string; desc: string; gradient: string }[] = [
+    { role: "student",  icon: "🎓", title: "Student",       desc: "Browse tutors, book sessions & track your learning journey.", gradient: "linear-gradient(135deg,#2D6A4F,#52B788)" },
+    { role: "tutor",    icon: "👨‍🏫", title: "Tutor",         desc: "Manage bookings, earn money & grow your student base.",       gradient: "linear-gradient(135deg,#F4A228,#E07B00)" },
+    { role: "admin",    icon: "🛡️",  title: "Administrator",  desc: "Monitor the platform, verify tutors & manage accounts.",      gradient: "linear-gradient(135deg,#3B82F6,#6366F1)" },
+  ];
   return (
-    <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px" }} onClick={onClose}>
-      <div style={{ background:"#fff",borderRadius:"24px",width:"100%",maxWidth:"700px",maxHeight:"92vh",overflowY:"auto" }} onClick={e=>e.stopPropagation()}>
-        <div style={{ background:"linear-gradient(135deg,#1E3A8A,#3B5BDB)",padding:"28px",borderRadius:"24px 24px 0 0",display:"flex",justifyContent:"space-between",alignItems:"flex-start" }}>
-          <div style={{ display:"flex",gap:"16px",alignItems:"center" }}>
-            <div style={{ width:64,height:64,borderRadius:"50%",background:"rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:"22px",fontWeight:700,fontFamily:"'DM Sans',sans-serif" }}>{tutor.avatar}</div>
-            <div>
-              <h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:"22px",color:"#fff",margin:"0 0 4px" }}>{tutor.name}</h2>
-              <p style={{ color:"rgba(255,255,255,0.75)",fontSize:"13px",margin:"0 0 6px",fontFamily:"'DM Sans',sans-serif" }}>🎓 {tutor.university}</p>
-              <Stars rating={parseFloat(avg)}/>
-            </div>
-          </div>
-          <button onClick={onClose} style={{ background:"rgba(255,255,255,0.2)",border:"none",borderRadius:"10px",width:"36px",height:"36px",fontSize:"16px",cursor:"pointer",color:"#fff" }}>✕</button>
+    <div style={{ minHeight: "100vh", background: "#0D0F1A", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40, fontFamily: F.body, position: "relative", overflow: "hidden" }}>
+      {/* bg decoration */}
+      <div style={{ position: "fixed", top: -200, left: -200, width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle,rgba(45,106,79,0.15) 0%,transparent 70%)", pointerEvents: "none" }} />
+      <div style={{ position: "fixed", bottom: -200, right: -200, width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle,rgba(59,130,246,0.1) 0%,transparent 70%)", pointerEvents: "none" }} />
+      <div style={{ textAlign: "center", marginBottom: 56, position: "relative" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 14, background: "linear-gradient(135deg,#2D6A4F,#52B788)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>📚</div>
+          <span style={{ fontFamily: F.display, fontSize: 32, fontWeight: 900, color: "#F0F2FF", letterSpacing: "-0.02em" }}>NoteFlow</span>
         </div>
-        <div style={{ padding:"28px",display:"flex",flexDirection:"column",gap:"24px" }}>
-          <div>
-            <h4 style={{ fontFamily:"'Playfair Display',serif",fontSize:"17px",color:"#0F172A",margin:"0 0 8px" }}>About</h4>
-            <p style={{ color:"#475569",fontSize:"14px",margin:"0 0 14px",fontFamily:"'DM Sans',sans-serif",lineHeight:1.6 }}>{tutor.bio}</p>
-            <div style={{ display:"flex",flexWrap:"wrap",gap:"8px" }}>
-              {tutor.subjects.map(s=><span key={s} style={{ background:"#EAF3FF",color:"#2563EB",fontSize:"12px",fontWeight:600,padding:"5px 12px",borderRadius:"20px",fontFamily:"'DM Sans',sans-serif" }}>{s}</span>)}
-            </div>
-          </div>
-          <div style={{ background:"#F8FAFF",borderRadius:"14px",padding:"20px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"16px" }}>
-            <div>
-              <p style={{ margin:"0 0 2px",fontSize:"12px",color:"#64748B",fontFamily:"'DM Sans',sans-serif",textTransform:"uppercase",fontWeight:600 }}>Session Rate</p>
-              <p style={{ margin:0,fontFamily:"'Playfair Display',serif",fontSize:"28px",fontWeight:800,color:"#3B5BDB" }}>{tutor.rate}</p>
-            </div>
-            {booked?(
-              <div style={{ background:"#EAFAF1",borderRadius:"12px",padding:"12px 20px",textAlign:"center" }}>
-                <p style={{ margin:0,color:"#15803D",fontWeight:700,fontFamily:"'DM Sans',sans-serif" }}>✅ Session Requested!</p>
-                <p style={{ margin:"4px 0 0",fontSize:"12px",color:"#64748B",fontFamily:"'DM Sans',sans-serif" }}>{tutor.name} will contact you soon</p>
-              </div>
-            ):(
-              <button onClick={()=>user?setShowBook(true):onSignIn()} style={{ background:tutor.available?"linear-gradient(135deg,#3B5BDB,#6366F1)":"#94A3B8",color:"#fff",border:"none",borderRadius:"12px",padding:"13px 28px",fontSize:"15px",fontWeight:700,cursor:tutor.available?"pointer":"not-allowed",fontFamily:"'DM Sans',sans-serif" }}>
-                {tutor.available?"📅 Book a Session":"Currently Unavailable"}
-              </button>
-            )}
-          </div>
-          {showBook&&!booked&&(
-            <div style={{ background:"#fff",border:"1.5px solid #3B5BDB",borderRadius:"14px",padding:"20px",display:"flex",flexDirection:"column",gap:"14px" }}>
-              <h4 style={{ fontFamily:"'Playfair Display',serif",fontSize:"17px",color:"#0F172A",margin:0 }}>Book a Session</h4>
-              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px" }}>
-                <div><label style={labelStyle}>Preferred Date</label><input type="date" style={inputStyle}/></div>
-                <div><label style={labelStyle}>Preferred Time</label><input type="time" style={inputStyle}/></div>
-              </div>
-              <div><label style={labelStyle}>Topic to Cover</label><input placeholder="e.g. Binary Trees, SQL Joins..." style={inputStyle}/></div>
-              <div><label style={labelStyle}>Additional Notes</label><textarea rows={2} placeholder="Any specific questions or areas of concern..." style={{ ...inputStyle,resize:"vertical" }}/></div>
-              <div style={{ display:"flex",gap:"10px" }}>
-                <button onClick={()=>{ setBooked(true); setShowBook(false); }} style={{ background:"linear-gradient(135deg,#3B5BDB,#6366F1)",color:"#fff",border:"none",borderRadius:"10px",padding:"11px 24px",fontSize:"14px",fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>Confirm Booking</button>
-                <button onClick={()=>setShowBook(false)} style={{ background:"#F1F5F9",color:"#475569",border:"none",borderRadius:"10px",padding:"11px 24px",fontSize:"14px",fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>Cancel</button>
-              </div>
-            </div>
-          )}
-          <div>
-            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px" }}>
-              <h4 style={{ fontFamily:"'Playfair Display',serif",fontSize:"18px",color:"#0F172A",margin:0 }}>Student Reviews ({tutor.reviews.length})</h4>
-              {user&&!showReviewForm&&<button onClick={()=>setShowReviewForm(true)} style={{ background:"linear-gradient(135deg,#3B5BDB,#6366F1)",color:"#fff",border:"none",borderRadius:"10px",padding:"9px 18px",fontSize:"13px",fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>✍️ Rate Tutor</button>}
-            </div>
-            {showReviewForm&&<div style={{ marginBottom:"16px" }}><ReviewForm onSubmit={(r,c)=>{ onReview(tutor.id,r,c); setShowReviewForm(false); }} onCancel={()=>setShowReviewForm(false)}/></div>}
-            <div style={{ display:"flex",flexDirection:"column",gap:"12px" }}>
-              {tutor.reviews.length>0?tutor.reviews.map(r=><ReviewCard key={r.id} review={r}/>):(
-                <div style={{ textAlign:"center",padding:"24px",color:"#94A3B8",fontFamily:"'DM Sans',sans-serif" }}>
-                  <p style={{ fontSize:"24px",margin:"0 0 8px" }}>✍️</p><p style={{ fontSize:"14px",margin:0 }}>No reviews yet. Be the first!</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <h1 style={{ fontFamily: F.display, fontSize: "clamp(36px,5vw,64px)", fontWeight: 900, color: "#F0F2FF", margin: "0 0 16px", lineHeight: 1.1, letterSpacing: "-0.03em" }}>
+          Connecting Botswana's<br /><span style={{ color: "#52B788" }}>Students & Tutors</span>
+        </h1>
+        <p style={{ color: "#8892B0", fontSize: 18, maxWidth: 480, margin: "0 auto", lineHeight: 1.6 }}>Choose your role to enter your personalised dashboard</p>
       </div>
-    </div>
-  );
-};
-
-const TutorsPage = ({ user, onSignIn, tutors, onReview }: {
-  user: UserObj | null; onSignIn: () => void; tutors: Tutor[]; onReview: (tutorId: number, rating: number, comment: string) => void;
-}) => {
-  const [selectedTutor,setSelectedTutor] = useState<Tutor | null>(null);
-  const [search,setSearch] = useState("");
-  const [filterUni,setFilterUni] = useState("All");
-  const filtered = tutors.filter(t=>{
-    const q = search.toLowerCase();
-    const matchQ = !q||t.name.toLowerCase().includes(q)||t.subjects.some(s=>s.toLowerCase().includes(q));
-    const matchUni = filterUni==="All"||t.university===filterUni;
-    return matchQ&&matchUni;
-  });
-  return (
-    <div style={{ maxWidth:"1200px",margin:"0 auto",padding:"40px 24px 80px" }}>
-      {selectedTutor&&<TutorViewer tutor={tutors.find(t=>t.id===selectedTutor.id)||selectedTutor} user={user} onClose={()=>setSelectedTutor(null)} onSignIn={()=>{ setSelectedTutor(null); onSignIn(); }} onReview={onReview}/>}
-      <div style={{ textAlign:"center",marginBottom:"40px" }}>
-        <div style={{ display:"inline-block",background:"#EAF3FF",color:"#2563EB",borderRadius:"20px",padding:"6px 16px",fontSize:"12px",fontWeight:700,marginBottom:"14px",fontFamily:"'DM Sans',sans-serif",textTransform:"uppercase" }}>👨‍🏫 Tutor Marketplace</div>
-        <h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:"36px",color:"#0F172A",margin:"0 0 10px" }}>Find Your Perfect Tutor</h2>
-        <p style={{ color:"#64748B",fontSize:"16px",maxWidth:"500px",margin:"0 auto",fontFamily:"'DM Sans',sans-serif" }}>Connect with top students from Botswana universities for 1-on-1 tutoring sessions</p>
-      </div>
-      <div style={{ display:"flex",gap:"12px",marginBottom:"28px",flexWrap:"wrap" }}>
-        <div style={{ flex:1,minWidth:"200px",display:"flex",alignItems:"center",background:"#fff",borderRadius:"12px",border:"1.5px solid #E2E8F0",padding:"0 16px" }}>
-          <span style={{ marginRight:"8px",fontSize:"16px" }}>🔍</span>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name or subject..." style={{ flex:1,border:"none",outline:"none",fontSize:"14px",color:"#0F172A",background:"transparent",fontFamily:"'DM Sans',sans-serif",padding:"12px 0" }}/>
-        </div>
-        <select value={filterUni} onChange={e=>setFilterUni(e.target.value)} style={{ padding:"12px 16px",borderRadius:"12px",border:"1.5px solid #E2E8F0",fontSize:"14px",fontFamily:"'DM Sans',sans-serif",color:"#475569",background:"#fff",outline:"none" }}>
-          <option value="All">All Universities</option>
-          {universities.map(u=><option key={u.name} value={u.name}>{u.name}</option>)}
-        </select>
-      </div>
-      <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))",gap:"20px" }}>
-        {filtered.map(tutor=><TutorCard key={tutor.id} tutor={tutor} onOpen={setSelectedTutor}/>)}
-        {filtered.length===0&&(
-          <div style={{ gridColumn:"1/-1",textAlign:"center",padding:"60px 0",color:"#94A3B8" }}>
-            <p style={{ fontSize:"40px",margin:"0 0 12px" }}>👨‍🏫</p>
-            <p style={{ fontSize:"16px",fontWeight:600,color:"#475569",fontFamily:"'DM Sans',sans-serif" }}>No tutors found</p>
-          </div>
-        )}
-      </div>
-      <div style={{ marginTop:"48px",background:"linear-gradient(135deg,#1E3A8A,#3B5BDB)",borderRadius:"20px",padding:"40px",textAlign:"center" }}>
-        <h3 style={{ fontFamily:"'Playfair Display',serif",fontSize:"26px",color:"#fff",margin:"0 0 10px" }}>Are You a Top Student?</h3>
-        <p style={{ color:"rgba(255,255,255,0.75)",fontFamily:"'DM Sans',sans-serif",maxWidth:"400px",margin:"0 auto 20px" }}>Join our tutor marketplace and earn money helping fellow students pass their exams.</p>
-        <button style={{ background:"rgba(255,255,255,0.2)",color:"#fff",border:"1.5px solid rgba(255,255,255,0.4)",borderRadius:"12px",padding:"12px 28px",fontSize:"14px",fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>Apply to Become a Tutor →</button>
-      </div>
-    </div>
-  );
-};
-
-const PaymentModal = ({ plan, onSuccess, onClose }: { plan: Plan; onSuccess: () => void; onClose: () => void }) => {
-  const [step,setStep] = useState("details");
-  const [cardNum,setCardNum] = useState("");
-  const [expiry,setExpiry] = useState("");
-  const [cvv,setCvv] = useState("");
-  const [name,setName] = useState("");
-  const handlePay = () => {
-    if(!cardNum||!expiry||!cvv||!name){alert("Please fill in all card details.");return;}
-    setStep("processing");
-    setTimeout(()=>{ setStep("success"); setTimeout(onSuccess,1500); },2500);
-  };
-  return (
-    <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px" }} onClick={onClose}>
-      <div style={{ background:"#fff",borderRadius:"24px",width:"100%",maxWidth:"460px",overflow:"hidden" }} onClick={e=>e.stopPropagation()}>
-        <div style={{ background:"linear-gradient(135deg,#1E3A8A,#3B5BDB)",padding:"24px 28px",color:"#fff",display:"flex",justifyContent:"space-between",alignItems:"center" }}>
-          <div><p style={{ margin:0,fontSize:"12px",opacity:0.75,fontFamily:"'DM Sans',sans-serif" }}>NoteFlow Premium</p><h3 style={{ margin:"4px 0 0",fontFamily:"'Playfair Display',serif",fontSize:"22px" }}>{plan.name} Plan</h3></div>
-          <div style={{ textAlign:"right" }}><div style={{ fontSize:"28px",fontWeight:800,fontFamily:"'Playfair Display',serif" }}>{plan.price}</div><div style={{ fontSize:"12px",opacity:0.75,fontFamily:"'DM Sans',sans-serif" }}>{plan.period}</div></div>
-        </div>
-        <div style={{ padding:"28px" }}>
-          {step==="details"&&<div style={{ display:"flex",flexDirection:"column",gap:"14px" }}>
-            <p style={{ margin:"0 0 4px",fontWeight:700,fontSize:"13px",color:"#0F172A",fontFamily:"'DM Sans',sans-serif",textTransform:"uppercase",letterSpacing:"0.04em" }}>Card Details</p>
-            <input value={name} onChange={e=>setName(e.target.value)} placeholder="Cardholder Name" style={inp}/>
-            <input value={cardNum} onChange={e=>setCardNum(e.target.value.replace(/\D/g,"").slice(0,16).replace(/(.{4})/g,"$1 ").trim())} placeholder="1234 5678 9012 3456" style={inp}/>
-            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px" }}>
-              <input value={expiry} onChange={e=>{ let v=e.target.value.replace(/\D/g,"").slice(0,4); if(v.length>2)v=v.slice(0,2)+"/"+v.slice(2); setExpiry(v); }} placeholder="MM/YY" style={inp}/>
-              <input value={cvv} onChange={e=>setCvv(e.target.value.replace(/\D/g,"").slice(0,3))} placeholder="CVV" style={inp}/>
-            </div>
-            <div style={{ background:"#F0FDF4",borderRadius:"10px",padding:"12px 16px",display:"flex",gap:"8px" }}><span>🔒</span><p style={{ margin:0,fontSize:"12px",color:"#15803D",fontFamily:"'DM Sans',sans-serif" }}>256-bit SSL encryption</p></div>
-            <button onClick={handlePay} style={{ background:"linear-gradient(135deg,#3B5BDB,#6366F1)",color:"#fff",border:"none",borderRadius:"12px",padding:"14px",fontSize:"15px",fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>Pay {plan.price} →</button>
-            <button onClick={onClose} style={{ background:"transparent",color:"#64748B",border:"none",fontSize:"13px",cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>Cancel</button>
-          </div>}
-          {step==="processing"&&<div style={{ textAlign:"center",padding:"40px 0" }}><div style={{ fontSize:"48px",marginBottom:"16px" }}>⏳</div><h3 style={{ fontFamily:"'Playfair Display',serif",color:"#0F172A" }}>Processing...</h3></div>}
-          {step==="success"&&<div style={{ textAlign:"center",padding:"40px 0" }}><div style={{ fontSize:"56px",marginBottom:"16px" }}>🎉</div><h3 style={{ fontFamily:"'Playfair Display',serif",color:"#0F172A" }}>Payment Successful!</h3><p style={{ color:"#64748B",fontFamily:"'DM Sans',sans-serif" }}>Welcome to NoteFlow Premium 🇧🇼</p></div>}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const SignInModal = ({ onSignIn, onClose }: { onSignIn: (user: UserObj) => void; onClose: () => void }) => (
-  <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center" }} onClick={onClose}>
-    <div style={{ background:"#fff",borderRadius:"24px",padding:"40px",width:"100%",maxWidth:"400px",margin:"0 20px",textAlign:"center" }} onClick={e=>e.stopPropagation()}>
-      <div style={{ width:52,height:52,borderRadius:"14px",background:"linear-gradient(135deg,#3B5BDB,#6366F1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"24px",margin:"0 auto 16px" }}>📚</div>
-      <h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:"26px",color:"#0F172A",margin:"0 0 8px" }}>Welcome to NoteFlow</h2>
-      <p style={{ color:"#64748B",fontSize:"14px",margin:"0 0 28px",fontFamily:"'DM Sans',sans-serif" }}>Sign in to access study materials from Botswana universities</p>
-      <button onClick={()=>onSignIn({ name:"Thabang Odirile",email:"thabang@gmail.com",avatar:"TO",plan:"free" })}
-        style={{ width:"100%",padding:"13px 20px",borderRadius:"12px",border:"1.5px solid #E2E8F0",background:"#fff",color:"#0F172A",fontSize:"15px",fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",justifyContent:"center",gap:"12px",marginBottom:"16px" }}>
-        <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-        Continue with Google
-      </button>
-      <p style={{ color:"#94A3B8",fontSize:"12px",fontFamily:"'DM Sans',sans-serif",margin:0 }}>By signing in you agree to our Terms of Service</p>
-    </div>
-  </div>
-);
-
-const DocCard = ({ doc, onOpen }: { doc: Doc; onOpen: (d: Doc) => void }) => {
-  const [hovered,setHovered] = useState(false);
-  const colors = typeColors[doc.type];
-  return (
-    <div onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)} onClick={()=>onOpen(doc)}
-      style={{ background:"#fff",borderRadius:"16px",padding:"24px",border:hovered?"1.5px solid #3B5BDB":"1.5px solid #E8EDF5",boxShadow:hovered?"0 8px 32px rgba(59,91,219,0.10)":"0 2px 8px rgba(0,0,0,0.04)",cursor:"pointer",transition:"all 0.22s",transform:hovered?"translateY(-3px)":"none",display:"flex",flexDirection:"column",gap:"14px",position:"relative" }}>
-      {doc.premium&&<div style={{ position:"absolute",top:16,right:16,background:"#FFF8E1",color:"#B45309",fontSize:"10px",fontWeight:700,padding:"3px 8px",borderRadius:"20px",fontFamily:"'DM Sans',sans-serif" }}>💎 Premium</div>}
-      <div style={{ display:"flex",justifyContent:"space-between" }}>
-        <span style={{ background:colors.bg,color:colors.text,fontSize:"11px",fontWeight:700,padding:"4px 10px",borderRadius:"20px",textTransform:"uppercase",fontFamily:"'DM Sans',sans-serif" }}>{doc.type}</span>
-        <span style={{ color:"#94A3B8",fontSize:"12px",fontFamily:"'DM Sans',sans-serif",marginRight:doc.premium?"64px":"0" }}>{doc.year}</span>
-      </div>
-      <div>
-        <h3 style={{ fontFamily:"'Playfair Display',serif",fontSize:"16px",fontWeight:700,color:"#0F172A",lineHeight:1.4,margin:0 }}>{doc.title}</h3>
-        <p style={{ color:"#64748B",fontSize:"12.5px",margin:"6px 0 0",fontFamily:"'DM Sans',sans-serif",lineHeight:1.5 }}>{doc.preview}</p>
-      </div>
-      <p style={{ color:"#475569",fontSize:"12.5px",margin:0,fontFamily:"'DM Sans',sans-serif" }}>🎓 {doc.university}</p>
-      <div style={{ borderTop:"1px solid #F1F5F9",paddingTop:"12px",display:"flex",justifyContent:"space-between",alignItems:"center" }}>
-        <Stars rating={doc.rating}/>
-        <div style={{ display:"flex",gap:"10px",color:"#64748B",fontSize:"12px",fontFamily:"'DM Sans',sans-serif" }}>
-          <span>📄 {doc.pages}p</span><span>💬 {doc.reviews.length}</span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const PricingPage = ({ user, onSubscribe }: { user: UserObj | null; onSubscribe: () => void }) => {
-  const [selectedPlan,setSelectedPlan] = useState<Plan | null>(null);
-  return (
-    <div style={{ maxWidth:"1100px",margin:"0 auto",padding:"40px 24px 80px" }}>
-      {selectedPlan&&<PaymentModal plan={selectedPlan} onSuccess={()=>{ onSubscribe(); setSelectedPlan(null); }} onClose={()=>setSelectedPlan(null)}/>}
-      <div style={{ textAlign:"center",marginBottom:"48px" }}>
-        <div style={{ display:"inline-block",background:"#EAF3FF",color:"#2563EB",borderRadius:"20px",padding:"6px 16px",fontSize:"12px",fontWeight:700,marginBottom:"16px",fontFamily:"'DM Sans',sans-serif",textTransform:"uppercase" }}>💎 Premium Access</div>
-        <h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:"38px",color:"#0F172A",margin:"0 0 12px" }}>Unlock Everything</h2>
-        <p style={{ color:"#64748B",fontSize:"16px",maxWidth:"500px",margin:"0 auto",fontFamily:"'DM Sans',sans-serif",lineHeight:1.6 }}>Full access to all notes, textbooks, past exam papers and more from every Botswana university.</p>
-      </div>
-      <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:"20px",maxWidth:"960px",margin:"0 auto" }}>
-        {PLANS.map(plan=>(
-          <div key={plan.id} style={{ background:"#fff",borderRadius:"20px",padding:"32px",border:plan.id==="semester"?`2px solid ${plan.color}`:"1.5px solid #E8EDF5",position:"relative",boxShadow:plan.id==="semester"?"0 8px 32px rgba(124,58,237,0.15)":"0 2px 8px rgba(0,0,0,0.04)" }}>
-            {plan.id==="semester"&&<div style={{ position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)",background:plan.color,color:"#fff",borderRadius:"20px",padding:"4px 16px",fontSize:"12px",fontWeight:700,fontFamily:"'DM Sans',sans-serif",whiteSpace:"nowrap" }}>⭐ Most Popular</div>}
-            {plan.saves&&<div style={{ background:"#EAFAF1",color:"#15803D",borderRadius:"20px",padding:"4px 12px",fontSize:"11px",fontWeight:700,fontFamily:"'DM Sans',sans-serif",display:"inline-block",marginBottom:"12px" }}>{plan.saves}</div>}
-            <h3 style={{ fontFamily:"'Playfair Display',serif",fontSize:"22px",color:"#0F172A",margin:"0 0 4px" }}>{plan.name}</h3>
-            <div style={{ display:"flex",alignItems:"baseline",gap:"4px",margin:"12px 0 20px" }}>
-              <span style={{ fontSize:"36px",fontWeight:800,color:plan.color,fontFamily:"'Playfair Display',serif" }}>{plan.price}</span>
-              <span style={{ color:"#94A3B8",fontSize:"14px",fontFamily:"'DM Sans',sans-serif" }}>{plan.period}</span>
-            </div>
-            <button onClick={()=>user?setSelectedPlan(plan):alert("Please sign in first!")} style={{ width:"100%",padding:"13px",borderRadius:"12px",border:"none",background:user?.plan==="premium"?"#E2E8F0":`linear-gradient(135deg,${plan.color},#6366F1)`,color:user?.plan==="premium"?"#64748B":"#fff",fontSize:"14px",fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>
-              {user?.plan==="premium"?"✅ Current Plan":"Subscribe Now →"}
-            </button>
-          </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 20, width: "100%", maxWidth: 900 }}>
+        {roles.map(r => (
+          <RoleCard key={r.role} {...r} onClick={() => onChooseRole(r.role)} />
         ))}
       </div>
-      <p style={{ textAlign:"center",marginTop:"28px",color:"#94A3B8",fontSize:"13px",fontFamily:"'DM Sans',sans-serif" }}>🔒 Secure payment · Cancel anytime · Instant access</p>
+      <p style={{ color: "#4A5568", fontSize: 13, marginTop: 40 }}>🇧🇼 Built for Botswana · NoteFlow 2024</p>
     </div>
   );
-};
+}
 
-const UploadPage = ({ user, onSignIn }: { user: UserObj | null; onSignIn: () => void }) => {
-  const [selectedUni,setSelectedUni] = useState("");
-  const [selectedType,setSelectedType] = useState("Notes");
-  const [title,setTitle] = useState("");
-  const [fileName,setFileName] = useState("");
-  const [submitted,setSubmitted] = useState(false);
-  const [dragging,setDragging] = useState(false);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const uniObj = universities.find(u=>u.name===selectedUni);
-  if(!user) return <div style={{ maxWidth:"500px",margin:"80px auto",textAlign:"center",padding:"0 24px" }}><div style={{ fontSize:"56px",marginBottom:"16px" }}>🔐</div><h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:"26px",color:"#0F172A" }}>Sign In to Upload</h2><p style={{ color:"#64748B",fontFamily:"'DM Sans',sans-serif",marginBottom:"24px" }}>You need to be signed in to share your study materials.</p><button onClick={onSignIn} style={{ background:"linear-gradient(135deg,#3B5BDB,#6366F1)",color:"#fff",border:"none",borderRadius:"12px",padding:"13px 32px",fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:"15px" }}>Sign In with Google →</button></div>;
-  if(submitted) return <div style={{ maxWidth:"600px",margin:"80px auto",textAlign:"center",padding:"0 24px" }}><div style={{ fontSize:"64px",marginBottom:"20px" }}>🎉</div><h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:"28px",color:"#0F172A" }}>Upload Successful!</h2><p style={{ color:"#64748B",fontFamily:"'DM Sans',sans-serif" }}><strong>{fileName}</strong> has been submitted.</p><button onClick={()=>{ setSubmitted(false); setFileName(""); setTitle(""); setSelectedUni(""); }} style={{ marginTop:"24px",background:"linear-gradient(135deg,#3B5BDB,#6366F1)",color:"#fff",border:"none",borderRadius:"12px",padding:"13px 28px",fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>Upload Another</button></div>;
-  return(
-    <div style={{ maxWidth:"720px",margin:"0 auto",padding:"40px 24px 80px" }}>
-      <h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:"32px",color:"#0F172A",marginBottom:"6px" }}>Upload Your Notes</h2>
-      <p style={{ color:"#64748B",marginBottom:"36px",fontFamily:"'DM Sans',sans-serif" }}>Share your study materials and help fellow students in Botswana</p>
-      <div style={{ background:"#fff",borderRadius:"20px",padding:"36px",border:"1.5px solid #E8EDF5",display:"flex",flexDirection:"column",gap:"22px" }}>
-        <div><label style={labelStyle}>Document Title *</label><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="e.g. Introduction to Java - Week 1 Notes" style={inputStyle}/></div>
-        <div><label style={labelStyle}>University / College *</label><select value={selectedUni} onChange={e=>setSelectedUni(e.target.value)} style={inputStyle}><option value="">— Select your institution —</option>{universities.map(u=><option key={u.name} value={u.name}>{u.name}</option>)}</select></div>
-        {uniObj&&<div><label style={labelStyle}>Course *</label><select style={inputStyle}><option value="">— Select your course —</option>{uniObj.courses.map(c=><option key={c}>{c}</option>)}</select></div>}
-        <div><label style={labelStyle}>Document Type *</label><div style={{ display:"flex",gap:"10px",flexWrap:"wrap" }}>{["Notes","Exam","Summary","Textbook"].map(type=><button key={type} onClick={()=>setSelectedType(type)} style={{ padding:"10px 22px",borderRadius:"10px",fontSize:"14px",fontWeight:600,border:selectedType===type?"none":"1.5px solid #CBD5E1",background:selectedType===type?"linear-gradient(135deg,#3B5BDB,#6366F1)":"#fff",color:selectedType===type?"#fff":"#475569",cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>{type}</button>)}</div></div>
-        <div><label style={labelStyle}>Upload File *</label>
-          <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.ppt,.pptx" style={{ display:"none" }} onChange={e=>{ if(e.target.files?.[0]) setFileName(e.target.files[0].name); }}/>
-          <div onClick={()=>fileInputRef.current?.click()} onDragOver={e=>{ e.preventDefault(); setDragging(true); }} onDragLeave={()=>setDragging(false)} onDrop={e=>{ e.preventDefault(); setDragging(false); if(e.dataTransfer.files[0]) setFileName(e.dataTransfer.files[0].name); }}
-            style={{ border:dragging?"2px dashed #3B5BDB":fileName?"2px solid #22C55E":"2px dashed #CBD5E1",borderRadius:"14px",padding:"32px",textAlign:"center",cursor:"pointer",background:fileName?"#F0FDF4":"#F8FAFF",transition:"all 0.2s" }}>
-            <div style={{ fontSize:"32px",marginBottom:"8px" }}>{fileName?"✅":"📂"}</div>
-            {fileName?<><p style={{ color:"#15803D",fontSize:"14px",fontWeight:700,margin:"0 0 2px",fontFamily:"'DM Sans',sans-serif" }}>{fileName}</p><p style={{ color:"#64748B",fontSize:"12px",margin:0,fontFamily:"'DM Sans',sans-serif" }}>Click to change</p></>
-              :<><p style={{ color:"#0F172A",fontSize:"14px",fontWeight:600,margin:"0 0 4px",fontFamily:"'DM Sans',sans-serif" }}>Drag & drop or <span style={{ color:"#3B5BDB" }}>browse your computer</span></p><p style={{ color:"#94A3B8",fontSize:"12px",margin:0,fontFamily:"'DM Sans',sans-serif" }}>PDF, DOCX, PPT · Max 50MB</p></>}
-          </div>
-        </div>
-        <button onClick={()=>{ if(title&&selectedUni&&fileName) setSubmitted(true); else alert("Please fill in title, university and upload a file."); }} style={{ background:"linear-gradient(135deg,#3B5BDB,#6366F1)",color:"#fff",border:"none",borderRadius:"12px",padding:"15px",fontSize:"15px",fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>Upload Document →</button>
-      </div>
-    </div>
-  );
-};
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  ADMIN DASHBOARD — mini-components (prefixed A to avoid conflicts)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-const ABadge = ({ label, color = AC.info }: { label: string; color?: string }) => (
-  <span style={{ background:color+'22',color,fontSize:'11px',fontWeight:600,padding:'3px 10px',borderRadius:'20px',fontFamily:AF.mono,whiteSpace:'nowrap' }}>{label}</span>
-);
-
-const AStatCard = ({ icon, label, value, sub, color = AC.accent }: { icon: string; label: string; value: string | number; sub?: string; color?: string }) => (
-  <div style={{ background:AC.card,borderRadius:'14px',padding:'22px 20px',border:`1px solid ${AC.border}`,flex:1,minWidth:150 }}>
-    <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start' }}>
-      <div>
-        <p style={{ margin:'0 0 8px',fontSize:'11px',color:AC.textMuted,fontFamily:AF.body,textTransform:'uppercase',letterSpacing:'0.07em',fontWeight:600 }}>{label}</p>
-        <p style={{ margin:0,fontSize:'28px',fontWeight:700,color:AC.text,fontFamily:AF.mono }}>{value}</p>
-        {sub&&<p style={{ margin:'4px 0 0',fontSize:'12px',color:AC.textSub,fontFamily:AF.body }}>{sub}</p>}
-      </div>
-      <div style={{ width:40,height:40,borderRadius:'12px',background:color+'20',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'18px',flexShrink:0 }}>{icon}</div>
-    </div>
-  </div>
-);
-
-const AEmpty = ({ icon, title, desc }: { icon: string; title: string; desc: string }) => (
-  <div style={{ textAlign:'center',padding:'56px 20px' }}>
-    <div style={{ fontSize:'40px',marginBottom:'12px' }}>{icon}</div>
-    <p style={{ fontFamily:AF.body,fontSize:'15px',fontWeight:600,color:AC.textSub,margin:'0 0 6px' }}>{title}</p>
-    <p style={{ fontFamily:AF.body,fontSize:'13px',color:AC.textMuted,margin:0 }}>{desc}</p>
-  </div>
-);
-
-const ASectionHead = ({ title, sub }: { title: string; sub: string }) => (
-  <div style={{ marginBottom:'28px' }}>
-    <h1 style={{ fontFamily:AF.head,fontSize:'26px',color:AC.text,margin:'0 0 6px',fontWeight:800 }}>{title}</h1>
-    <p style={{ color:AC.textMuted,fontSize:'14px',margin:0,fontFamily:AF.body }}>{sub}</p>
-  </div>
-);
-
-const ATableHead = ({ cols, template }: { cols: string[]; template: string }) => (
-  <div style={{ display:'grid',gridTemplateColumns:template,padding:'12px 20px',borderBottom:`1px solid ${AC.border}`,background:'rgba(255,255,255,0.025)' }}>
-    {cols.map(h=>(
-      <span key={h} style={{ fontSize:'11px',fontWeight:600,color:AC.textMuted,textTransform:'uppercase',letterSpacing:'0.07em',fontFamily:AF.body }}>{h}</span>
-    ))}
-  </div>
-);
-
-const AToggle = ({ active, onChange, danger = false }: { active: boolean; onChange: () => void; danger?: boolean }) => {
-  const bg = active?(danger?AC.danger:AC.success):AC.border;
+function RoleCard({ icon, title, desc, gradient, onClick }: { icon: string; title: string; desc: string; gradient: string; onClick: () => void }) {
+  const [hov, setHov] = useState(false);
   return (
-    <div onClick={onChange} style={{ width:44,height:24,borderRadius:12,background:bg,cursor:'pointer',position:'relative',transition:'background 0.2s',flexShrink:0,border:`1px solid ${active?bg:AC.borderMd}` }}>
-      <div style={{ position:'absolute',top:3,left:active?22:3,width:16,height:16,borderRadius:'50%',background:'#fff',transition:'left 0.2s' }}/>
+    <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} onClick={onClick}
+      style={{ background: hov ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.03)", border: hov ? "1.5px solid rgba(255,255,255,0.15)" : "1.5px solid rgba(255,255,255,0.07)", borderRadius: 20, padding: "36px 28px", cursor: "pointer", transition: "all 0.25s", transform: hov ? "translateY(-6px)" : "none", boxShadow: hov ? "0 24px 48px rgba(0,0,0,0.4)" : "none" }}>
+      <div style={{ width: 56, height: 56, borderRadius: 16, background: gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, marginBottom: 20 }}>{icon}</div>
+      <h3 style={{ fontFamily: F.display, fontSize: 22, fontWeight: 700, color: "#F0F2FF", margin: "0 0 10px" }}>{title}</h3>
+      <p style={{ color: "#8892B0", fontSize: 14, margin: "0 0 24px", lineHeight: 1.6 }}>{desc}</p>
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: gradient, padding: "10px 20px", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 600 }}>
+        Enter as {title} →
+      </div>
     </div>
   );
-};
+}
 
-const ASearchBox = ({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) => (
-  <div style={{ display:'flex',alignItems:'center',gap:8,background:AC.card,border:`1px solid ${AC.border}`,borderRadius:10,padding:'8px 14px' }}>
-    <span style={{ fontSize:14 }}>🔍</span>
-    <input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
-      style={{ background:'none',border:'none',outline:'none',color:AC.text,fontSize:13,fontFamily:AF.body,width:200 }}/>
-  </div>
-);
-
-const AActionBtn = ({ label, onClick, danger = false }: { label: string; onClick: () => void; danger?: boolean }) => (
-  <button onClick={onClick} style={{ padding:'5px 10px',borderRadius:6,border:danger?'none':`1px solid ${AC.border}`,background:danger?AC.dangerDim:'none',color:danger?AC.danger:AC.textMuted,fontSize:11,cursor:'pointer',fontFamily:AF.body,whiteSpace:'nowrap' }}>{label}</button>
-);
-
-const AGroupLabel = ({ label }: { label: string }) => (
-  <p style={{ fontFamily:AF.body,fontSize:12,fontWeight:600,color:AC.textMuted,textTransform:'uppercase',letterSpacing:'0.07em',margin:'0 0 12px' }}>{label}</p>
-);
-
-// ── Admin sub-pages ──────────────────────────────────────────────────────────
-
-function AdminOverview({ students, tutors, payments, ratings, verifications }: {
-  students: AdminStudent[]; tutors: AdminTutor[]; payments: Payment[];
-  ratings: Rating[]; verifications: Verification[];
+// ═══════════════════════════════════════════════════════════════════════════════
+// LOGIN PAGE
+// ═══════════════════════════════════════════════════════════════════════════════
+function LoginPage({ role, onLogin, onBack, tutors, students, setTutors, setStudents }: {
+  role: Role; onLogin: (u: User) => void; onBack: () => void;
+  tutors: TutorProfile[]; students: StudentProfile[];
+  setTutors: React.Dispatch<React.SetStateAction<TutorProfile[]>>;
+  setStudents: React.Dispatch<React.SetStateAction<StudentProfile[]>>;
 }) {
-  const totalRev = payments.reduce((s,p)=>s+(p.amount||0),0);
-  const pendingV = verifications.filter(v=>v.status==='pending').length;
-  const avgRat = ratings.length?(ratings.reduce((s,r)=>s+r.rating,0)/ratings.length).toFixed(1):'—';
-  const statuses = [{label:'API Server',ok:true},{label:'Database',ok:true},{label:'Payment Gateway',ok:true},{label:'Storage',ok:true},{label:'Email Service',ok:true}];
-  return (
-    <div>
-      <ASectionHead title="Dashboard Overview" sub="Welcome back, Mark — here's what's happening on NoteFlow today."/>
-      <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(175px,1fr))',gap:14,marginBottom:24 }}>
-        <AStatCard icon="👥" label="Total Students"  value={students.length}                    sub="Registered"      color={AC.info}    />
-        <AStatCard icon="👨‍🏫" label="Total Tutors"   value={tutors.length}                      sub="Active profiles" color={AC.success} />
-        <AStatCard icon="💰" label="Total Revenue"   value={`P${totalRev.toLocaleString()}`}    sub="All time"        color={AC.accent}  />
-        <AStatCard icon="⏳" label="Pending Verif."  value={pendingV}                           sub="Awaiting review" color={AC.danger}  />
-        <AStatCard icon="⭐" label="Avg. Rating"     value={avgRat}                             sub="Platform-wide"   color={AC.warning} />
-        <AStatCard icon="💬" label="Total Reviews"   value={ratings.length}                     sub="All submitted"   color={AC.info}    />
-      </div>
-      <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:16 }}>
-        <div style={{ background:AC.card,borderRadius:14,padding:24,border:`1px solid ${AC.border}` }}>
-          <h3 style={{ fontFamily:AF.head,fontSize:16,color:AC.text,margin:'0 0 16px',fontWeight:700 }}>Recent Activity</h3>
-          <AEmpty icon="📋" title="No activity yet" desc="All admin actions will be logged here"/>
-        </div>
-        <div style={{ background:AC.card,borderRadius:14,padding:24,border:`1px solid ${AC.border}` }}>
-          <h3 style={{ fontFamily:AF.head,fontSize:16,color:AC.text,margin:'0 0 16px',fontWeight:700 }}>Platform Status</h3>
-          {statuses.map(s=>(
-            <div key={s.label} style={{ display:'flex',justifyContent:'space-between',alignItems:'center',padding:'11px 0',borderBottom:`1px solid ${AC.border}` }}>
-              <span style={{ fontSize:13,color:AC.textSub,fontFamily:AF.body }}>{s.label}</span>
-              <span style={{ fontSize:11,color:s.ok?AC.success:AC.danger,background:s.ok?AC.successDim:AC.dangerDim,padding:'3px 10px',borderRadius:20,fontFamily:AF.mono }}>{s.ok?'● Operational':'● Degraded'}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [university, setUniversity] = useState("");
+  const [course, setCourse] = useState("");
+  const [year, setYear] = useState("1st Year");
+  const [subjects, setSubjects] = useState("");
+  const [rate, setRate] = useState("");
+  const [bio, setBio] = useState("");
+  const [qualifications, setQualifications] = useState("");
+  const [err, setErr] = useState("");
 
-function AdminStudents({ students, setStudents }: { students: AdminStudent[]; setStudents: React.Dispatch<React.SetStateAction<AdminStudent[]>> }) {
-  const [search,setSearch] = useState('');
-  const filtered = students.filter(s=>!search||s.name?.toLowerCase().includes(search.toLowerCase())||s.email?.toLowerCase().includes(search.toLowerCase()));
-  const suspend = (id: number) => setStudents(p=>p.map(s=>s.id===id?{...s,status:s.status==='suspended'?'active':'suspended'}:s));
-  const remove = (id: number) => { if(window.confirm('Permanently delete this student account?')) setStudents(p=>p.filter(s=>s.id!==id)); };
-  const cols = ['Name','Email','University','Plan','Status','Joined','Actions'];
-  const template = '1.8fr 2fr 2fr 0.8fr 0.9fr 0.9fr 130px';
-  return (
-    <div>
-      <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:28,flexWrap:'wrap',gap:12 }}>
-        <ASectionHead title="Student Accounts" sub="View and manage all registered student accounts"/>
-        <ASearchBox value={search} onChange={setSearch} placeholder="Search students…"/>
-      </div>
-      <div style={{ background:AC.card,borderRadius:14,border:`1px solid ${AC.border}`,overflow:'hidden' }}>
-        <ATableHead cols={cols} template={template}/>
-        {filtered.length===0
-          ?<AEmpty icon="👥" title="No students registered yet" desc="Student accounts will appear here once they sign up"/>
-          :filtered.map(s=>(
-            <div key={s.id} style={{ display:'grid',gridTemplateColumns:template,padding:'13px 20px',borderBottom:`1px solid ${AC.border}`,alignItems:'center',gap:4 }}>
-              <span style={{ fontSize:13,color:AC.text,fontFamily:AF.body,fontWeight:500 }}>{s.name}</span>
-              <span style={{ fontSize:12,color:AC.textMuted,fontFamily:AF.body }}>{s.email}</span>
-              <span style={{ fontSize:12,color:AC.textSub,fontFamily:AF.body }}>{s.university||'—'}</span>
-              <ABadge label={s.plan||'free'} color={s.plan==='premium'?AC.accent:AC.info}/>
-              <ABadge label={s.status||'active'} color={s.status==='suspended'?AC.danger:AC.success}/>
-              <span style={{ fontSize:12,color:AC.textMuted,fontFamily:AF.mono }}>{s.joined||'—'}</span>
-              <div style={{ display:'flex',gap:6 }}>
-                <AActionBtn label={s.status==='suspended'?'Restore':'Suspend'} onClick={()=>suspend(s.id)}/>
-                <AActionBtn label="Delete" danger onClick={()=>remove(s.id)}/>
-              </div>
-            </div>
-          ))}
-      </div>
-    </div>
-  );
-}
+  const themeColor = role === "student" ? "#2D6A4F" : role === "tutor" ? "#F4A228" : "#3B82F6";
+  const roleIcon = role === "student" ? "🎓" : role === "tutor" ? "👨‍🏫" : "🛡️";
 
-function AdminTutors({ tutors, setTutors }: { tutors: AdminTutor[]; setTutors: React.Dispatch<React.SetStateAction<AdminTutor[]>> }) {
-  const [search,setSearch] = useState('');
-  const filtered = tutors.filter(t=>!search||t.name?.toLowerCase().includes(search.toLowerCase())||t.subjects?.some(s=>s.toLowerCase().includes(search.toLowerCase())));
-  const suspend = (id: number) => setTutors(p=>p.map(t=>t.id===id?{...t,status:t.status==='suspended'?'active':'suspended'}:t));
-  const remove = (id: number) => { if(window.confirm('Permanently delete this tutor account?')) setTutors(p=>p.filter(t=>t.id!==id)); };
-  const cols = ['Name','Email','University','Subjects','Rating','Status','Actions'];
-  const template = '1.5fr 2fr 1.8fr 2fr 0.7fr 0.9fr 120px';
-  return (
-    <div>
-      <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:28,flexWrap:'wrap',gap:12 }}>
-        <ASectionHead title="Tutor Accounts" sub="Manage all registered and verified tutor profiles"/>
-        <ASearchBox value={search} onChange={setSearch} placeholder="Search tutors…"/>
-      </div>
-      <div style={{ background:AC.card,borderRadius:14,border:`1px solid ${AC.border}`,overflow:'hidden' }}>
-        <ATableHead cols={cols} template={template}/>
-        {filtered.length===0
-          ?<AEmpty icon="👨‍🏫" title="No tutors registered yet" desc="Tutor profiles will appear here once they apply"/>
-          :filtered.map(t=>(
-            <div key={t.id} style={{ display:'grid',gridTemplateColumns:template,padding:'13px 20px',borderBottom:`1px solid ${AC.border}`,alignItems:'center',gap:4 }}>
-              <span style={{ fontSize:13,color:AC.text,fontFamily:AF.body,fontWeight:500 }}>{t.name}</span>
-              <span style={{ fontSize:12,color:AC.textMuted,fontFamily:AF.body }}>{t.email}</span>
-              <span style={{ fontSize:12,color:AC.textSub,fontFamily:AF.body }}>{t.university||'—'}</span>
-              <div style={{ display:'flex',gap:4,flexWrap:'wrap' }}>
-                {(t.subjects||[]).slice(0,2).map(s=><span key={s} style={{ fontSize:10,background:AC.infoDim,color:AC.info,padding:'2px 8px',borderRadius:20,fontFamily:AF.body }}>{s}</span>)}
-                {(t.subjects||[]).length>2&&<span style={{ fontSize:10,color:AC.textMuted,fontFamily:AF.body }}>+{(t.subjects||[]).length-2}</span>}
-              </div>
-              <span style={{ fontSize:13,color:AC.accent,fontFamily:AF.mono }}>★ {t.rating||'—'}</span>
-              <ABadge label={t.status||'active'} color={t.status==='suspended'?AC.danger:AC.success}/>
-              <div style={{ display:'flex',gap:6 }}>
-                <AActionBtn label={t.status==='suspended'?'Restore':'Suspend'} onClick={()=>suspend(t.id)}/>
-                <AActionBtn label="Delete" danger onClick={()=>remove(t.id)}/>
-              </div>
-            </div>
-          ))}
-      </div>
-    </div>
-  );
-}
-
-function AdminVerifications({ verifications, onVerify }: { verifications: Verification[]; onVerify: (id: number, action: string) => void }) {
-  const pending = verifications.filter(v=>v.status==='pending');
-  const reviewed = verifications.filter(v=>v.status!=='pending');
-  const VerifCard = ({ v }: { v: Verification }) => (
-    <div style={{ background:AC.cardHov,borderRadius:12,padding:20,border:`1px solid ${AC.border}`,marginBottom:12 }}>
-      <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12 }}>
-        <div style={{ display:'flex',gap:12,alignItems:'center' }}>
-          <div style={{ width:44,height:44,borderRadius:'50%',background:AC.infoDim,display:'flex',alignItems:'center',justifyContent:'center',color:AC.info,fontFamily:AF.mono,fontSize:13,fontWeight:700 }}>{v.avatar}</div>
-          <div>
-            <p style={{ margin:'0 0 2px',fontSize:15,fontWeight:600,color:AC.text,fontFamily:AF.body }}>{v.name}</p>
-            <p style={{ margin:0,fontSize:12,color:AC.textMuted,fontFamily:AF.body }}>🎓 {v.university}</p>
-          </div>
-        </div>
-        <ABadge label={v.status} color={v.status==='pending'?AC.warning:v.status==='approved'?AC.success:AC.danger}/>
-      </div>
-      <div style={{ display:'flex',gap:6,flexWrap:'wrap',marginBottom:12 }}>
-        {(v.subjects||[]).map(s=><span key={s} style={{ background:AC.infoDim,color:AC.info,fontSize:11,padding:'3px 10px',borderRadius:20,fontFamily:AF.body }}>{s}</span>)}
-      </div>
-      <p style={{ fontSize:12,color:AC.textMuted,margin:'0 0 4px',fontFamily:AF.body }}>Rate: {v.rate} · Applied: {v.date}</p>
-      {v.bio&&<p style={{ fontSize:12,color:AC.textSub,margin:'0 0 14px',fontFamily:AF.body,lineHeight:1.5 }}>{v.bio}</p>}
-      {v.status==='pending'&&(
-        <div style={{ display:'flex',gap:8,marginTop:8 }}>
-          <button onClick={()=>onVerify(v.id,'approved')} style={{ padding:'8px 20px',borderRadius:8,border:'none',background:AC.successDim,color:AC.success,fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:AF.body }}>✓ Approve</button>
-          <button onClick={()=>onVerify(v.id,'rejected')} style={{ padding:'8px 20px',borderRadius:8,border:'none',background:AC.dangerDim,color:AC.danger,fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:AF.body }}>✕ Reject</button>
-          <button style={{ padding:'8px 20px',borderRadius:8,border:`1px solid ${AC.border}`,background:'none',color:AC.textMuted,fontSize:13,cursor:'pointer',fontFamily:AF.body }}>Request More Info</button>
-        </div>
-      )}
-    </div>
-  );
-  return (
-    <div>
-      <ASectionHead title="Tutor Verification" sub="Review and approve tutor applications before they go live"/>
-      <AGroupLabel label={`Pending (${pending.length})`}/>
-      {pending.length===0
-        ?<div style={{ background:AC.card,borderRadius:14,border:`1px solid ${AC.border}`,marginBottom:28 }}><AEmpty icon="✅" title="All caught up!" desc="No pending verifications right now"/></div>
-        :<div style={{ marginBottom:28 }}>{pending.map(v=><VerifCard key={v.id} v={v}/>)}</div>}
-      {reviewed.length>0&&<><AGroupLabel label={`Recently Reviewed (${reviewed.length})`}/>{reviewed.map(v=><VerifCard key={v.id} v={v}/>)}</>}
-    </div>
-  );
-}
-
-function AdminPayments({ payments }: { payments: Payment[] }) {
-  const total = payments.reduce((s,p)=>s+(p.amount||0),0);
-  const nowMonth = new Date().getMonth();
-  const thisMonth = payments.filter(p=>p.month===nowMonth).reduce((s,p)=>s+(p.amount||0),0);
-  const pending = payments.filter(p=>p.status==='pending').reduce((s,p)=>s+(p.amount||0),0);
-  const refunded = payments.filter(p=>p.status==='refunded').reduce((s,p)=>s+(p.amount||0),0);
-  const cols = ['Student','Plan','Amount','Date','Method','Status'];
-  const template = '2fr 1.5fr 1fr 1.2fr 1.2fr 1fr';
-  return (
-    <div>
-      <ASectionHead title="Payment Monitoring" sub="Track all transactions, subscriptions, and revenue"/>
-      <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(175px,1fr))',gap:14,marginBottom:24 }}>
-        <AStatCard icon="💰" label="Total Revenue" value={`P${total.toLocaleString()}`}     sub="All time"      color={AC.accent}  />
-        <AStatCard icon="📅" label="This Month"    value={`P${thisMonth.toLocaleString()}`} sub="Current month" color={AC.success} />
-        <AStatCard icon="⏳" label="Pending"       value={`P${pending.toLocaleString()}`}   sub="Processing"    color={AC.warning} />
-        <AStatCard icon="↩️" label="Refunded"      value={`P${refunded.toLocaleString()}`}  sub="All time"      color={AC.danger}  />
-      </div>
-      <div style={{ background:AC.card,borderRadius:14,border:`1px solid ${AC.border}`,overflow:'hidden' }}>
-        <div style={{ padding:'16px 20px',borderBottom:`1px solid ${AC.border}`,display:'flex',justifyContent:'space-between',alignItems:'center' }}>
-          <h3 style={{ fontFamily:AF.head,fontSize:16,color:AC.text,margin:0,fontWeight:700 }}>Transaction History</h3>
-          <span style={{ fontSize:12,color:AC.textMuted,fontFamily:AF.body }}>{payments.length} records</span>
-        </div>
-        <ATableHead cols={cols} template={template}/>
-        {payments.length===0
-          ?<AEmpty icon="💳" title="No transactions yet" desc="Payment records will appear here as students subscribe"/>
-          :payments.map(p=>(
-            <div key={p.id} style={{ display:'grid',gridTemplateColumns:template,padding:'13px 20px',borderBottom:`1px solid ${AC.border}`,alignItems:'center' }}>
-              <span style={{ fontSize:13,color:AC.text,fontFamily:AF.body }}>{p.student}</span>
-              <span style={{ fontSize:12,color:AC.textSub,fontFamily:AF.body }}>{p.plan}</span>
-              <span style={{ fontSize:13,color:AC.accent,fontFamily:AF.mono }}>P{p.amount}</span>
-              <span style={{ fontSize:12,color:AC.textMuted,fontFamily:AF.mono }}>{p.date}</span>
-              <span style={{ fontSize:12,color:AC.textSub,fontFamily:AF.body }}>{p.method||'Card'}</span>
-              <ABadge label={p.status||'success'} color={p.status==='refunded'?AC.danger:p.status==='pending'?AC.warning:AC.success}/>
-            </div>
-          ))}
-      </div>
-    </div>
-  );
-}
-
-function AdminRatings({ ratings, setRatings }: { ratings: Rating[]; setRatings: React.Dispatch<React.SetStateAction<Rating[]>> }) {
-  const [filter,setFilter] = useState('all');
-  const toggleHide = (id: number) => setRatings(p=>p.map(r=>r.id===id?{...r,hidden:!r.hidden}:r));
-  const toggleFlag = (id: number) => setRatings(p=>p.map(r=>r.id===id?{...r,flagged:!r.flagged}:r));
-  const deleteRev = (id: number) => { if(window.confirm('Delete this review?')) setRatings(p=>p.filter(r=>r.id!==id)); };
-  const visible = ratings.filter(r=>filter==='all'?true:filter==='flagged'?r.flagged:filter==='hidden'?r.hidden:true);
-  const avg = ratings.length?(ratings.reduce((s,r)=>s+r.rating,0)/ratings.length).toFixed(1):'—';
-  return (
-    <div>
-      <ASectionHead title="Ratings & Reviews" sub="Monitor and moderate all platform reviews"/>
-      <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(175px,1fr))',gap:14,marginBottom:24 }}>
-        <AStatCard icon="⭐" label="Avg. Rating"   value={avg}                                    sub="Platform-wide"  color={AC.warning} />
-        <AStatCard icon="💬" label="Total Reviews" value={ratings.length}                         sub="All submitted"  color={AC.info}    />
-        <AStatCard icon="🚩" label="Flagged"       value={ratings.filter(r=>r.flagged).length}    sub="Needs review"   color={AC.danger}  />
-        <AStatCard icon="🙈" label="Hidden"        value={ratings.filter(r=>r.hidden).length}     sub="Admin-hidden"   color={AC.textSub} />
-      </div>
-      <div style={{ background:AC.card,borderRadius:14,border:`1px solid ${AC.border}`,overflow:'hidden' }}>
-        <div style={{ padding:'16px 20px',borderBottom:`1px solid ${AC.border}`,display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:10 }}>
-          <h3 style={{ fontFamily:AF.head,fontSize:16,color:AC.text,margin:0,fontWeight:700 }}>All Reviews</h3>
-          <div style={{ display:'flex',gap:6 }}>
-            {['all','flagged','hidden'].map(f=>(
-              <button key={f} onClick={()=>setFilter(f)} style={{ padding:'6px 14px',borderRadius:20,border:'none',background:filter===f?AC.accentDim:'transparent',color:filter===f?AC.accent:AC.textMuted,fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:AF.body,textTransform:'capitalize' }}>{f}</button>
-            ))}
-          </div>
-        </div>
-        {visible.length===0
-          ?<AEmpty icon="⭐" title="No reviews found" desc="Student and tutor reviews will appear here"/>
-          :visible.map(r=>(
-            <div key={r.id} style={{ padding:'16px 20px',borderBottom:`1px solid ${AC.border}`,opacity:r.hidden?0.55:1 }}>
-              <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:12 }}>
-                <div style={{ flex:1 }}>
-                  <div style={{ display:'flex',gap:8,alignItems:'center',marginBottom:6,flexWrap:'wrap' }}>
-                    <span style={{ color:AC.accent,fontFamily:AF.mono,fontSize:13 }}>{'★'.repeat(r.rating)}{'☆'.repeat(5-r.rating)}</span>
-                    <span style={{ fontSize:12,color:AC.textMuted,fontFamily:AF.body }}>by {r.user} · {r.target} · {r.date}</span>
-                    {r.flagged&&<ABadge label="Flagged" color={AC.danger}/>}
-                    {r.hidden&&<ABadge label="Hidden" color={AC.textMuted}/>}
-                  </div>
-                  <p style={{ margin:0,fontSize:13,color:AC.textSub,fontFamily:AF.body,lineHeight:1.5 }}>{r.comment}</p>
-                </div>
-                <div style={{ display:'flex',gap:6,flexShrink:0 }}>
-                  <AActionBtn label={r.flagged?'Unflag':'Flag'} onClick={()=>toggleFlag(r.id)}/>
-                  <AActionBtn label={r.hidden?'Restore':'Hide'} onClick={()=>toggleHide(r.id)}/>
-                  <AActionBtn label="Delete" danger onClick={()=>deleteRev(r.id)}/>
-                </div>
-              </div>
-            </div>
-          ))}
-      </div>
-    </div>
-  );
-}
-
-function AdminMaintenance({ settings, onToggle, logs }: { settings: AdminSettings; onToggle: (key: keyof AdminSettings) => void; logs: Log[] }) {
-  const [cacheMsg,setCacheMsg] = useState('');
-  const [backupMsg,setBackupMsg] = useState('');
-  const clearCache = () => { setCacheMsg('Clearing…'); setTimeout(()=>{ setCacheMsg('Cache cleared ✓'); setTimeout(()=>setCacheMsg(''),3000); },1200); };
-  const doBackup = () => { setBackupMsg('Backing up…'); setTimeout(()=>{ setBackupMsg('Backup complete ✓'); setTimeout(()=>setBackupMsg(''),3000); },1800); };
-  const toggleItems: { key: keyof AdminSettings; label: string; desc: string; danger?: boolean }[] = [
-    { key:'registrationEnabled', label:'Student Registration', desc:'Allow new students to sign up'            },
-    { key:'paymentsEnabled',     label:'Payment Processing',   desc:'Enable subscription payments'             },
-    { key:'tutorMarketEnabled',  label:'Tutor Marketplace',    desc:'Students can browse & book tutors'        },
-    { key:'emailNotifications',  label:'Email Notifications',  desc:'Send automated email alerts to users'     },
-    { key:'autoApprove',         label:'Auto-Approve Tutors',  desc:'Skip manual verification — not recommended'},
-    { key:'maintenanceMode',     label:'Maintenance Mode',     desc:'Redirect all users to maintenance notice', danger:true },
-  ];
-  return (
-    <div>
-      <ASectionHead title="System Maintenance" sub="Control platform features, run diagnostics, and manage system health"/>
-      <div style={{ background:AC.card,borderRadius:14,border:`1px solid ${AC.border}`,marginBottom:20,overflow:'hidden' }}>
-        <div style={{ padding:'16px 20px',borderBottom:`1px solid ${AC.border}` }}>
-          <h3 style={{ fontFamily:AF.head,fontSize:16,color:AC.text,margin:0,fontWeight:700 }}>Feature Toggles</h3>
-        </div>
-        {toggleItems.map(item=>(
-          <div key={item.key} style={{ display:'flex',justifyContent:'space-between',alignItems:'center',padding:'15px 20px',borderBottom:`1px solid ${AC.border}` }}>
-            <div>
-              <p style={{ margin:'0 0 2px',fontSize:14,fontWeight:600,color:item.danger&&settings[item.key]?AC.danger:AC.text,fontFamily:AF.body }}>{item.label}</p>
-              <p style={{ margin:0,fontSize:12,color:AC.textMuted,fontFamily:AF.body }}>{item.desc}</p>
-            </div>
-            <AToggle active={settings[item.key] as boolean} onChange={()=>onToggle(item.key)} danger={item.danger}/>
-          </div>
-        ))}
-      </div>
-      <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:20 }}>
-        <div style={{ background:AC.card,borderRadius:14,padding:22,border:`1px solid ${AC.border}` }}>
-          <h4 style={{ fontFamily:AF.head,fontSize:15,color:AC.text,margin:'0 0 14px',fontWeight:700 }}>Quick Actions</h4>
-          <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
-            <button onClick={clearCache} style={{ padding:'10px 16px',borderRadius:8,border:`1px solid ${AC.border}`,background:'none',color:AC.textSub,fontSize:13,cursor:'pointer',fontFamily:AF.body,textAlign:'left' }}>🗑️  Clear System Cache</button>
-            <button onClick={doBackup}   style={{ padding:'10px 16px',borderRadius:8,border:`1px solid ${AC.border}`,background:'none',color:AC.textSub,fontSize:13,cursor:'pointer',fontFamily:AF.body,textAlign:'left' }}>💾  Backup Database</button>
-            <button style={{ padding:'10px 16px',borderRadius:8,border:`1px solid ${AC.border}`,background:'none',color:AC.textSub,fontSize:13,cursor:'pointer',fontFamily:AF.body,textAlign:'left' }}>📊  Export Reports (CSV)</button>
-            <button style={{ padding:'10px 16px',borderRadius:8,border:`1px solid ${AC.border}`,background:'none',color:AC.textSub,fontSize:13,cursor:'pointer',fontFamily:AF.body,textAlign:'left' }}>📧  Send Test Email</button>
-          </div>
-          {cacheMsg&&<p style={{ margin:'10px 0 0',fontSize:12,color:AC.success,fontFamily:AF.body }}>{cacheMsg}</p>}
-          {backupMsg&&<p style={{ margin:'10px 0 0',fontSize:12,color:AC.success,fontFamily:AF.body }}>{backupMsg}</p>}
-        </div>
-        <div style={{ background:AC.card,borderRadius:14,padding:22,border:`1px solid ${AC.border}` }}>
-          <h4 style={{ fontFamily:AF.head,fontSize:15,color:AC.text,margin:'0 0 14px',fontWeight:700 }}>Activity Log</h4>
-          {logs.length===0?<AEmpty icon="📋" title="No logs yet" desc=""/>:logs.map(log=>(
-            <div key={log.id} style={{ display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 0',borderBottom:`1px solid ${AC.border}` }}>
-              <div>
-                <p style={{ margin:'0 0 1px',fontSize:13,color:AC.text,fontFamily:AF.body }}>{log.action}</p>
-                <p style={{ margin:0,fontSize:11,color:AC.textMuted,fontFamily:AF.body }}>{log.user} · {log.time}</p>
-              </div>
-              <span style={{ width:7,height:7,borderRadius:'50%',background:log.type==='success'?AC.success:log.type==='danger'?AC.danger:AC.info,flexShrink:0 }}/>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div style={{ background:AC.card,borderRadius:14,border:'1px solid rgba(239,68,68,0.3)',padding:22 }}>
-        <h4 style={{ fontFamily:AF.head,fontSize:15,color:AC.danger,margin:'0 0 4px',fontWeight:700 }}>⚠️ Danger Zone</h4>
-        <p style={{ fontSize:12,color:AC.textMuted,margin:'0 0 16px',fontFamily:AF.body }}>These actions are irreversible. Only proceed if you are absolutely certain.</p>
-        <div style={{ display:'flex',gap:10,flexWrap:'wrap' }}>
-          <button onClick={()=>window.confirm('Purge ALL reviews?')&&alert('Reviews purged.')} style={{ padding:'9px 18px',borderRadius:8,border:'1px solid rgba(239,68,68,0.35)',background:AC.dangerDim,color:AC.danger,fontSize:13,cursor:'pointer',fontFamily:AF.body }}>Purge All Reviews</button>
-          <button onClick={()=>window.confirm('RESET the entire platform?')&&alert('Platform reset.')} style={{ padding:'9px 18px',borderRadius:8,border:'1px solid rgba(239,68,68,0.35)',background:AC.dangerDim,color:AC.danger,fontSize:13,cursor:'pointer',fontFamily:AF.body }}>Reset Platform</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Admin shell (login + sidebar + content) ──────────────────────────────────
-const ADMIN_NAV = [
-  { id:'overview',      label:'Overview',      emoji:'◈' },
-  { id:'students',      label:'Students',       emoji:'◉' },
-  { id:'tutors',        label:'Tutors',         emoji:'◎' },
-  { id:'verifications', label:'Verifications',  emoji:'◆' },
-  { id:'payments',      label:'Payments',       emoji:'◇' },
-  { id:'ratings',       label:'Ratings',        emoji:'◈' },
-  { id:'maintenance',   label:'Maintenance',    emoji:'⊕' },
-];
-
-function AdminDashboard({ onExit }: { onExit: () => void }) {
-  const [screen,setScreen]      = useState('login');
-  const [adminTab,setAdminTab]  = useState('overview');
-  const [uInput,setUInput]      = useState('');
-  const [pInput,setPInput]      = useState('');
-  const [showPass,setShowPass]  = useState(false);
-  const [loginErr,setLoginErr]  = useState('');
-
-  const [adminStudents,      setAdminStudents]      = useState<AdminStudent[]>([]);
-  const [adminTutors,        setAdminTutors]        = useState<AdminTutor[]>([]);
-  const [adminVerifications, setAdminVerifications] = useState<Verification[]>([]);
-  const [adminPayments]                             = useState<Payment[]>([]);
-  const [adminRatings,       setAdminRatings]       = useState<Rating[]>([]);
-  const [adminSettings,      setAdminSettings]      = useState<AdminSettings>({
-    registrationEnabled:true, paymentsEnabled:true, tutorMarketEnabled:true,
-    emailNotifications:true, autoApprove:false, maintenanceMode:false,
-  });
-  const adminLogs: Log[] = [
-    { id:1,action:'Admin signed in',    user:'Mark',  time:'Just now',  type:'info'    },
-    { id:2,action:'System initialised', user:'System',time:'1 min ago', type:'success' },
-    { id:3,action:'Database connected', user:'System',time:'1 min ago', type:'success' },
-  ];
-
-  const handleLogin = () => {
-    if(uInput.toLowerCase()===ADMIN_CREDS.username&&pInput===ADMIN_CREDS.password){
-      setScreen('dashboard'); setLoginErr('');
-    } else { setLoginErr('Invalid username or password. Please try again.'); }
-  };
-
-  const handleVerify = (id: number, action: string) => setAdminVerifications(p=>p.map(v=>v.id===id?{...v,status:action}:v));
-  const handleToggle = (key: keyof AdminSettings) => setAdminSettings(p=>({...p,[key]:!p[key]}));
-  const pendingCount = adminVerifications.filter(v=>v.status==='pending').length;
-
-  // ── LOGIN ────────────────────────────────────────────────────────────────
-  if(screen==='login') return (
-    <div style={{ minHeight:'100vh',background:AC.bg,display:'flex',alignItems:'center',justifyContent:'center',padding:20,position:'relative',overflow:'hidden' }}>
-      <div style={{ position:'fixed',inset:0,backgroundImage:'linear-gradient(rgba(240,165,0,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(240,165,0,0.04) 1px,transparent 1px)',backgroundSize:'44px 44px',pointerEvents:'none',zIndex:0 }}/>
-      <div style={{ position:'fixed',top:'20%',left:'50%',transform:'translateX(-50%)',width:500,height:300,background:'radial-gradient(ellipse,rgba(240,165,0,0.07) 0%,transparent 70%)',pointerEvents:'none',zIndex:0 }}/>
-      <div style={{ background:AC.card,border:`1px solid ${AC.borderMd}`,borderRadius:22,padding:'44px 40px',width:'100%',maxWidth:410,position:'relative',zIndex:1 }}>
-        <div style={{ textAlign:'center',marginBottom:36 }}>
-          <div style={{ width:60,height:60,borderRadius:18,background:AC.accentDim,border:`1.5px solid ${AC.accentBdr}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,margin:'0 auto 16px' }}>🛡️</div>
-          <h1 style={{ fontFamily:AF.head,fontSize:24,color:AC.text,margin:'0 0 5px',fontWeight:800 }}>NoteFlow Admin</h1>
-          <p style={{ color:AC.textMuted,fontSize:13,margin:0,fontFamily:AF.body }}>Restricted access · Authorised personnel only</p>
-        </div>
-        <div style={{ background:AC.accentDim,border:`1px solid ${AC.accentBdr}`,borderRadius:10,padding:'10px 14px',marginBottom:22 }}>
-          <p style={{ color:AC.accent,fontSize:12,margin:0,fontFamily:AF.mono }}>Demo: mark / mark12345</p>
-        </div>
-        <div style={{ display:'flex',flexDirection:'column',gap:14 }}>
-          <div>
-            <label style={{ display:'block',fontSize:11,fontWeight:600,color:AC.textSub,marginBottom:7,textTransform:'uppercase',letterSpacing:'0.07em',fontFamily:AF.body }}>Username</label>
-            <input value={uInput} onChange={e=>setUInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()} placeholder="Enter username"
-              style={{ width:'100%',padding:'12px 14px',background:AC.bg,border:`1px solid ${AC.border}`,borderRadius:10,color:AC.text,fontSize:14,fontFamily:AF.body,outline:'none',boxSizing:'border-box' as const }}/>
-          </div>
-          <div>
-            <label style={{ display:'block',fontSize:11,fontWeight:600,color:AC.textSub,marginBottom:7,textTransform:'uppercase',letterSpacing:'0.07em',fontFamily:AF.body }}>Password</label>
-            <div style={{ position:'relative' }}>
-              <input type={showPass?'text':'password'} value={pInput} onChange={e=>setPInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()} placeholder="Enter password"
-                style={{ width:'100%',padding:'12px 44px 12px 14px',background:AC.bg,border:`1px solid ${AC.border}`,borderRadius:10,color:AC.text,fontSize:14,fontFamily:AF.body,outline:'none',boxSizing:'border-box' as const }}/>
-              <button onClick={()=>setShowPass((p:boolean)=>!p)} style={{ position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',color:AC.textMuted,fontSize:14,lineHeight:1 }}>{showPass?'🙈':'👁️'}</button>
-            </div>
-          </div>
-          {loginErr&&(
-            <div style={{ background:AC.dangerDim,border:'1px solid rgba(239,68,68,0.3)',borderRadius:10,padding:'10px 14px' }}>
-              <p style={{ color:AC.danger,fontSize:13,margin:0,fontFamily:AF.body }}>⚠️ {loginErr}</p>
-            </div>
-          )}
-          <button onClick={handleLogin} style={{ background:`linear-gradient(135deg,${AC.accent},#D97706)`,color:'#0B0D1A',border:'none',borderRadius:12,padding:14,fontSize:15,fontWeight:700,cursor:'pointer',fontFamily:AF.body,marginTop:4 }}>
-            Sign In to Admin Panel →
-          </button>
-          <button onClick={onExit} style={{ background:'transparent',color:AC.textMuted,border:'none',fontSize:13,cursor:'pointer',fontFamily:AF.body }}>← Back to NoteFlow</button>
-        </div>
-        <p style={{ textAlign:'center',marginTop:20,fontSize:12,color:AC.textMuted,fontFamily:AF.body,margin:'20px 0 0' }}>🔐 All activity is logged and monitored</p>
-      </div>
-    </div>
-  );
-
-  // ── DASHBOARD ────────────────────────────────────────────────────────────
-  const renderAdminTab = () => {
-    switch(adminTab){
-      case 'overview':      return <AdminOverview students={adminStudents} tutors={adminTutors} payments={adminPayments} ratings={adminRatings} verifications={adminVerifications}/>;
-      case 'students':      return <AdminStudents students={adminStudents} setStudents={setAdminStudents}/>;
-      case 'tutors':        return <AdminTutors tutors={adminTutors} setTutors={setAdminTutors}/>;
-      case 'verifications': return <AdminVerifications verifications={adminVerifications} onVerify={handleVerify}/>;
-      case 'payments':      return <AdminPayments payments={adminPayments}/>;
-      case 'ratings':       return <AdminRatings ratings={adminRatings} setRatings={setAdminRatings}/>;
-      case 'maintenance':   return <AdminMaintenance settings={adminSettings} onToggle={handleToggle} logs={adminLogs}/>;
-      default: return null;
+  const handleSubmit = () => {
+    setErr("");
+    if (role === "admin") {
+      if (email.toLowerCase() === "mark" && password === "mark12345") {
+        onLogin(ADMIN_USER);
+      } else { setErr("Invalid admin credentials."); }
+      return;
+    }
+    if (mode === "login") {
+      // find existing user
+      if (role === "student") {
+        const s = students.find(s => s.name.toLowerCase() === email.toLowerCase());
+        if (!s) { setErr("Account not found. Please register first."); return; }
+        onLogin({ id: s.userId, name: s.name, email: s.name + "@student.bw", role: "student", avatar: s.avatar });
+      } else {
+        const t = tutors.find(t => t.name.toLowerCase() === email.toLowerCase());
+        if (!t) { setErr("Account not found. Please register first."); return; }
+        onLogin({ id: t.userId, name: t.name, email: t.name + "@tutor.bw", role: "tutor", avatar: t.avatar });
+      }
+    } else {
+      // register
+      if (!name || !email || !password) { setErr("Please fill all required fields."); return; }
+      const initials = name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+      if (role === "student") {
+        const newId = Date.now();
+        const sp: StudentProfile = { id: newId, userId: newId, name, avatar: initials, university, course, year, joined: new Date().toLocaleDateString("en-GB", { month: "short", year: "numeric" }), plan: "free" };
+        setStudents(p => [...p, sp]);
+        onLogin({ id: newId, name, email, role: "student", avatar: initials });
+      } else {
+        const newId = Date.now();
+        const tp: TutorProfile = { id: newId, userId: newId, name, avatar: initials, university, subjects: subjects.split(",").map(s => s.trim()).filter(Boolean), qualifications: qualifications.split(",").map(q => q.trim()).filter(Boolean), bio, rate: parseFloat(rate) || 80, available: true, rating: 0, reviewCount: 0, verified: "pending", earnings: 0, joined: new Date().toLocaleDateString("en-GB", { month: "short", year: "numeric" }) };
+        setTutors(p => [...p, tp]);
+        onLogin({ id: newId, name, email, role: "tutor", avatar: initials });
+      }
     }
   };
 
+  const inp: React.CSSProperties = { width: "100%", padding: "12px 14px", borderRadius: 10, border: "1.5px solid #2A2D3E", background: "#0D0F1A", color: "#F0F2FF", fontSize: 14, fontFamily: F.body, outline: "none", boxSizing: "border-box" };
+  const lbl: React.CSSProperties = { display: "block", fontSize: 11, fontWeight: 600, color: "#8892B0", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: F.body };
+
   return (
-    <div style={{ display:'flex',minHeight:'100vh',background:AC.bg,fontFamily:AF.body }}>
-      {adminSettings.maintenanceMode&&(
-        <div style={{ position:'fixed',top:0,left:0,right:0,background:AC.danger,zIndex:9999,padding:'8px 20px',textAlign:'center' }}>
-          <span style={{ color:'#fff',fontSize:13,fontWeight:600,fontFamily:AF.body }}>⚠️ Maintenance Mode is ON — users see a maintenance notice</span>
-        </div>
-      )}
-      {/* Sidebar */}
-      <aside style={{ width:230,background:AC.sidebar,borderRight:`1px solid ${AC.border}`,padding:'22px 14px',display:'flex',flexDirection:'column',position:'sticky',top:adminSettings.maintenanceMode?38:0,height:'100vh',flexShrink:0,boxSizing:'border-box' }}>
-        <div style={{ padding:'0 8px 24px',borderBottom:`1px solid ${AC.border}`,marginBottom:16 }}>
-          <div style={{ display:'flex',alignItems:'center',gap:10 }}>
-            <div style={{ width:32,height:32,borderRadius:10,background:AC.accentDim,border:`1px solid ${AC.accentBdr}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:15 }}>📚</div>
-            <div>
-              <p style={{ margin:0,fontFamily:AF.head,fontSize:15,color:AC.text,fontWeight:800 }}>NoteFlow</p>
-              <p style={{ margin:0,fontSize:10,color:AC.accent,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',fontFamily:AF.body }}>Admin Panel</p>
+    <div style={{ minHeight: "100vh", background: "#0D0F1A", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div style={{ background: "#13162A", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 24, padding: "44px 40px", width: "100%", maxWidth: 480, position: "relative" }}>
+        <button onClick={onBack} style={{ position: "absolute", top: 20, left: 20, background: "none", border: "none", color: "#8892B0", cursor: "pointer", fontSize: 13, fontFamily: F.body }}>← Back</button>
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{ width: 56, height: 56, borderRadius: 16, background: `${themeColor}22`, border: `1.5px solid ${themeColor}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, margin: "0 auto 14px" }}>{roleIcon}</div>
+          <h2 style={{ fontFamily: F.display, fontSize: 26, fontWeight: 700, color: "#F0F2FF", margin: "0 0 6px" }}>
+            {role === "admin" ? "Admin Login" : mode === "login" ? `${role.charAt(0).toUpperCase()+role.slice(1)} Login` : `Register as ${role.charAt(0).toUpperCase()+role.slice(1)}`}
+          </h2>
+          {role !== "admin" && (
+            <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 12 }}>
+              {(["login","register"] as const).map(m => (
+                <button key={m} onClick={() => setMode(m)} style={{ padding: "6px 18px", borderRadius: 20, border: "none", background: mode === m ? themeColor : "transparent", color: mode === m ? "#fff" : "#8892B0", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: F.body }}>{m === "login" ? "Sign In" : "Register"}</button>
+              ))}
             </div>
+          )}
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {role === "admin" ? (
+            <>
+              <div><label style={lbl}>Username</label><input value={email} onChange={e=>setEmail(e.target.value)} placeholder="mark" style={inp} /></div>
+              <div><label style={lbl}>Password</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" style={inp} onKeyDown={e=>e.key==="Enter"&&handleSubmit()} /></div>
+              <div style={{ background: `${themeColor}22`, border: `1px solid ${themeColor}44`, borderRadius: 10, padding: "10px 14px" }}>
+                <p style={{ color: themeColor, fontSize: 12, margin: 0, fontFamily: F.mono }}>Demo: mark / mark12345</p>
+              </div>
+            </>
+          ) : mode === "login" ? (
+            <div><label style={lbl}>Your Name (used as login)</label><input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Enter your full name" style={inp} /></div>
+          ) : (
+            <>
+              <div><label style={lbl}>Full Name *</label><input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Thabang Molefe" style={inp} /></div>
+              <div><label style={lbl}>Email *</label><input value={email} onChange={e=>setEmail(e.target.value)} placeholder="your@email.com" style={inp} /></div>
+              <div><label style={lbl}>Password *</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" style={inp} /></div>
+              <div><label style={lbl}>University / College</label><input value={university} onChange={e=>setUniversity(e.target.value)} placeholder="e.g. University of Botswana" style={inp} /></div>
+              {role === "student" && (
+                <>
+                  <div><label style={lbl}>Course</label><input value={course} onChange={e=>setCourse(e.target.value)} placeholder="e.g. Computer Science" style={inp} /></div>
+                  <div><label style={lbl}>Year of Study</label>
+                    <select value={year} onChange={e=>setYear(e.target.value)} style={{ ...inp }}>
+                      {["1st Year","2nd Year","3rd Year","4th Year","Postgraduate"].map(y => <option key={y}>{y}</option>)}
+                    </select>
+                  </div>
+                </>
+              )}
+              {role === "tutor" && (
+                <>
+                  <div><label style={lbl}>Subjects (comma separated)</label><input value={subjects} onChange={e=>setSubjects(e.target.value)} placeholder="e.g. Data Structures, Algorithms" style={inp} /></div>
+                  <div><label style={lbl}>Qualifications (comma separated)</label><input value={qualifications} onChange={e=>setQualifications(e.target.value)} placeholder="e.g. BSc Computer Science, Dean's List" style={inp} /></div>
+                  <div><label style={lbl}>Hourly Rate (BWP)</label><input value={rate} onChange={e=>setRate(e.target.value)} placeholder="e.g. 80" style={inp} /></div>
+                  <div><label style={lbl}>Bio</label><textarea value={bio} onChange={e=>setBio(e.target.value)} rows={3} placeholder="Tell students about yourself..." style={{ ...inp, resize: "vertical" }} /></div>
+                </>
+              )}
+            </>
+          )}
+          {err && <div style={{ background: "#FF6B6B22", border: "1px solid #FF6B6B44", borderRadius: 10, padding: "10px 14px" }}><p style={{ color: "#FF6B6B", fontSize: 13, margin: 0, fontFamily: F.body }}>⚠️ {err}</p></div>}
+          <button onClick={handleSubmit} style={{ background: `linear-gradient(135deg,${themeColor},${themeColor}cc)`, color: "#fff", border: "none", borderRadius: 12, padding: 14, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: F.body, marginTop: 4 }}>
+            {role === "admin" ? "Sign In to Admin Panel →" : mode === "login" ? "Sign In →" : "Create Account →"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SHARED DASHBOARD SHELL
+// ═══════════════════════════════════════════════════════════════════════════════
+interface SharedProps {
+  tutors: TutorProfile[]; setTutors: React.Dispatch<React.SetStateAction<TutorProfile[]>>;
+  students: StudentProfile[]; setStudents: React.Dispatch<React.SetStateAction<StudentProfile[]>>;
+  bookings: Booking[]; setBookings: React.Dispatch<React.SetStateAction<Booking[]>>;
+  messages: Message[]; setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  reviews: Review[]; setReviews: React.Dispatch<React.SetStateAction<Review[]>>;
+  payments: Payment[]; setPayments: React.Dispatch<React.SetStateAction<Payment[]>>;
+  onLogout: () => void;
+}
+
+type AnyTheme = typeof T.student | typeof T.tutor | typeof T.admin;
+function Shell({ navItems, activeTab, setActiveTab, user, theme, headerRight, children }: {
+  navItems: { id: string; label: string; icon: string; badge?: number }[];
+  activeTab: string; setActiveTab: (t: string) => void;
+  user: User; theme: AnyTheme; headerRight?: React.ReactNode; children: React.ReactNode;
+}) {
+  return (
+    <div style={{ display: "flex", minHeight: "100vh", background: theme.bg, fontFamily: F.body }}>
+      {/* Sidebar */}
+      <aside style={{ width: 240, background: theme.sidebar, display: "flex", flexDirection: "column", padding: "24px 14px", position: "sticky", top: 0, height: "100vh", flexShrink: 0 }}>
+        <div style={{ padding: "0 10px 24px", borderBottom: "1px solid rgba(255,255,255,0.08)", marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 10, background: theme.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>📚</div>
+            <span style={{ fontFamily: F.display, fontSize: 18, fontWeight: 900, color: "#F0F2FF" }}>NoteFlow</span>
           </div>
         </div>
-        <nav style={{ flex:1,display:'flex',flexDirection:'column',gap:3 }}>
-          {ADMIN_NAV.map(item=>{
-            const isActive = adminTab===item.id;
-            const badge = item.id==='verifications'?pendingCount:item.id==='students'?adminStudents.length:item.id==='tutors'?adminTutors.length:0;
-            return(
-              <button key={item.id} onClick={()=>setAdminTab(item.id)} style={{ display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 12px',borderRadius:10,border:'none',cursor:'pointer',background:isActive?AC.accentDim:'transparent',color:isActive?AC.accent:AC.textSub,fontSize:14,fontFamily:AF.body,fontWeight:isActive?600:400,transition:'all 0.15s',textAlign:'left',width:'100%' }}>
-                <div style={{ display:'flex',alignItems:'center',gap:10 }}>
-                  <span style={{ fontSize:11,opacity:0.5 }}>{item.emoji}</span>{item.label}
+        <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 3 }}>
+          {navItems.map(item => {
+            const active = activeTab === item.id;
+            return (
+              <button key={item.id} onClick={() => setActiveTab(item.id)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 12px", borderRadius: 10, border: "none", cursor: "pointer", background: active ? theme.accentLight : "transparent", color: active ? theme.accent : "rgba(255,255,255,0.5)", fontSize: 14, fontFamily: F.body, fontWeight: active ? 600 : 400, transition: "all 0.15s", textAlign: "left", width: "100%" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 16 }}>{item.icon}</span>{item.label}
                 </div>
-                {badge>0&&<span style={{ background:item.id==='verifications'?AC.danger:AC.accentDim,color:item.id==='verifications'?'#fff':AC.accent,fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:10,fontFamily:AF.mono }}>{badge}</span>}
+                {item.badge != null && item.badge > 0 && <span style={{ background: theme.danger, color: "#fff", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 10, fontFamily: F.mono }}>{item.badge}</span>}
               </button>
             );
           })}
         </nav>
-        <div style={{ borderTop:`1px solid ${AC.border}`,paddingTop:14,display:'flex',alignItems:'center',gap:10 }}>
-          <div style={{ width:34,height:34,borderRadius:'50%',background:AC.accentDim,border:`1.5px solid ${AC.accentBdr}`,display:'flex',alignItems:'center',justifyContent:'center',color:AC.accent,fontSize:13,fontWeight:700,fontFamily:AF.mono,flexShrink:0 }}>MK</div>
-          <div style={{ flex:1,overflow:'hidden' }}>
-            <p style={{ margin:0,fontSize:13,fontWeight:600,color:AC.text,fontFamily:AF.body }}>Mark</p>
-            <p style={{ margin:0,fontSize:11,color:AC.textMuted,fontFamily:AF.body }}>Super Admin</p>
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 6px", marginBottom: 10 }}>
+            <Avatar initials={user.avatar} size={34} gradient={theme.gradient} />
+            <div style={{ flex: 1, overflow: "hidden" }}>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#F0F2FF", fontFamily: F.body, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user.name}</p>
+              <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: F.body, textTransform: "capitalize" }}>{user.role}</p>
+            </div>
           </div>
-          <button onClick={()=>{ setScreen('login'); setUInput(''); setPInput(''); }} title="Sign out" style={{ background:'none',border:'none',cursor:'pointer',color:AC.textMuted,fontSize:16,padding:4,lineHeight:1 }}>⎋</button>
+          <button onClick={() => {}} style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "8px 12px", color: "rgba(255,255,255,0.4)", fontSize: 12, cursor: "pointer", fontFamily: F.body, textAlign: "left" }}>
+            ← Sign Out
+          </button>
         </div>
-        <button onClick={onExit} style={{ marginTop:10,background:'none',border:`1px solid ${AC.border}`,borderRadius:8,padding:'8px 12px',color:AC.textMuted,fontSize:12,cursor:'pointer',fontFamily:AF.body,textAlign:'left' }}>← Back to NoteFlow</button>
       </aside>
       {/* Main */}
-      <main style={{ flex:1,overflowY:'auto',padding:'36px 36px 60px',marginTop:adminSettings.maintenanceMode?38:0 }}>
-        {renderAdminTab()}
+      <main style={{ flex: 1, overflowY: "auto", padding: "36px 32px 60px" }}>
+        {children}
       </main>
     </div>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  MAIN APP
+// STUDENT DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function NoteFlow() {
-  const [docs,setDocs]               = useState<Doc[]>(initialDocs);
-  const [tutors,setTutors]           = useState<Tutor[]>(initialTutors);
-  const [search,setSearch]           = useState("");
-  const [activePage,setActivePage]   = useState<NavPage>("explore");
-  const [activeUni,setActiveUni]     = useState("All Universities");
-  const [activeType,setActiveType]   = useState("All Types");
-  const [selectedDoc,setSelectedDoc] = useState<Doc | null>(null);
-  const [user,setUser]               = useState<UserObj | null>(null);
-  const [showSignIn,setShowSignIn]   = useState(false);
+function StudentDashboard({ user, ...shared }: { user: User } & SharedProps) {
+  const [tab, setTab] = useState("home");
+  const th = T.student;
+  const { tutors, bookings, messages, reviews, setBookings, setMessages, setReviews, setPayments, payments, onLogout } = shared;
 
-  if(activePage==="admin"){
-    return (
-      <>
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Syne:wght@700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
-        <AdminDashboard onExit={()=>setActivePage("explore")}/>
-      </>
-    );
-  }
-
-  const allUnis  = ["All Universities",...universities.map(u=>u.short)];
-  const docTypes = ["All Types","Notes","Exam","Summary","Textbook"];
-
-  const handleDocReview = (docId: number, rating: number, comment: string) => {
-    setDocs(prev=>prev.map(d=>d.id!==docId?d:{
-      ...d,
-      reviews:[...d.reviews,{ id:d.reviews.length+1,user:user?.name||"Anonymous",avatar:user?.avatar||"AN",rating,comment,date:new Date().toLocaleDateString("en-GB",{month:"short",year:"numeric"}) }],
-      rating:parseFloat(((d.reviews.reduce((a,r)=>a+r.rating,0)+rating)/(d.reviews.length+1)).toFixed(1))
-    }));
-  };
-
-  const handleTutorReview = (tutorId: number, rating: number, comment: string) => {
-    setTutors(prev=>prev.map(t=>t.id!==tutorId?t:{
-      ...t,
-      reviews:[...t.reviews,{ id:t.reviews.length+1,user:user?.name||"Anonymous",avatar:user?.avatar||"AN",rating,comment,date:new Date().toLocaleDateString("en-GB",{month:"short",year:"numeric"}) }],
-      rating:parseFloat(((t.reviews.reduce((a,r)=>a+r.rating,0)+rating)/(t.reviews.length+1)).toFixed(1)),
-      reviewCount:t.reviewCount+1
-    }));
-  };
-
-  const filtered = docs.filter(doc=>{
-    const q = search.toLowerCase();
-    const matchSearch = !q||doc.title.toLowerCase().includes(q)||doc.subject.toLowerCase().includes(q)||doc.university.toLowerCase().includes(q)||doc.preview.toLowerCase().includes(q);
-    const matchUni = activeUni==="All Universities"||universities.find(u=>u.short===activeUni)?.name===doc.university;
-    const matchType = activeType==="All Types"||doc.type===activeType;
-    return matchSearch&&matchUni&&matchType;
-  });
+  const myBookings = bookings.filter(b => b.studentId === user.id);
+  const myMessages = messages.filter(m => m.receiverId === user.id);
+  const unreadMsgs = myMessages.filter(m => !m.read).length;
+  const pendingBookings = myBookings.filter(b => b.status === "pending").length;
 
   const navItems = [
-    { label:"Explore",      page:"explore"       as NavPage },
-    { label:"Universities", page:"universities"  as NavPage },
-    { label:"Courses",      page:"courses"       as NavPage },
-    { label:"Tutors",       page:"tutors"        as NavPage },
-    { label:"Upload",       page:"upload"        as NavPage },
-    { label:"💎 Premium",   page:"pricing"       as NavPage },
+    { id: "home",     label: "Overview",       icon: "◈" },
+    { id: "tutors",   label: "Find Tutors",     icon: "👨‍🏫" },
+    { id: "bookings", label: "My Bookings",     icon: "📅", badge: pendingBookings },
+    { id: "messages", label: "Messages",        icon: "💬", badge: unreadMsgs },
+    { id: "payments", label: "Payments",        icon: "💳" },
+    { id: "reviews",  label: "My Reviews",      icon: "⭐" },
   ];
 
   return (
-    <div style={{ fontFamily:"'DM Sans',sans-serif",background:"#F8FAFF",minHeight:"100vh" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <Shell navItems={navItems} activeTab={tab} setActiveTab={setTab} user={user} theme={th}>
+      {tab === "home"     && <StudentHome     user={user} bookings={myBookings} tutors={tutors} messages={myMessages} theme={th} />}
+      {tab === "tutors"   && <StudentTutors   user={user} tutors={tutors} bookings={bookings} setBookings={setBookings} setPayments={setPayments} reviews={reviews} theme={th} />}
+      {tab === "bookings" && <StudentBookings user={user} bookings={myBookings} setBookings={setBookings} theme={th} />}
+      {tab === "messages" && <StudentMessages user={user} messages={messages} setMessages={setMessages} tutors={tutors} theme={th} />}
+      {tab === "payments" && <StudentPayments user={user} payments={payments.filter(p => p.studentId === user.id)} theme={th} />}
+      {tab === "reviews"  && <StudentReviews  user={user} reviews={reviews.filter(r => r.studentId === user.id)} tutors={tutors} setReviews={setReviews} bookings={myBookings} theme={th} />}
+    </Shell>
+  );
+}
 
-      {showSignIn&&<SignInModal onSignIn={u=>{ setUser(u); setShowSignIn(false); }} onClose={()=>setShowSignIn(false)}/>}
-      {selectedDoc&&<DocViewer doc={docs.find(d=>d.id===selectedDoc.id)||selectedDoc} allDocs={docs} user={user} onClose={()=>setSelectedDoc(null)} onUpgrade={()=>{ setSelectedDoc(null); setActivePage("pricing"); }} onReview={handleDocReview}/>}
-
-      {/* NAV */}
-      <nav style={{ background:"#fff",borderBottom:"1px solid #E8EDF5",padding:"0 32px",height:"64px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 12px rgba(0,0,0,0.04)" }}>
-        <div style={{ display:"flex",alignItems:"center",gap:"10px",cursor:"pointer" }} onClick={()=>setActivePage("explore")}>
-          <div style={{ width:34,height:34,borderRadius:"10px",background:"linear-gradient(135deg,#3B5BDB,#6366F1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"17px" }}>📚</div>
-          <span style={{ fontFamily:"'Playfair Display',serif",fontSize:"22px",fontWeight:800,background:"linear-gradient(135deg,#3B5BDB,#6366F1)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent" }}>NoteFlow</span>
-        </div>
-        <div style={{ display:"flex",gap:"20px",alignItems:"center" }}>
-          {navItems.map(item=>(
-            <span key={item.page} onClick={()=>setActivePage(item.page)} style={{ color:activePage===item.page?"#3B5BDB":"#475569",fontSize:"14px",fontWeight:activePage===item.page?700:500,cursor:"pointer",borderBottom:activePage===item.page?"2px solid #3B5BDB":"2px solid transparent",paddingBottom:"4px" }}>{item.label}</span>
+function StudentHome({ user, bookings, tutors, messages, theme }: { user: User; bookings: Booking[]; tutors: TutorProfile[]; messages: Message[]; theme: AnyTheme }) {
+  const confirmed = bookings.filter(b => b.status === "confirmed").length;
+  const completed = bookings.filter(b => b.status === "completed").length;
+  const unread = messages.filter(m => m.receiverId === user.id && !m.read).length;
+  return (
+    <div>
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{ fontFamily: F.display, fontSize: 32, fontWeight: 900, color: theme.text, margin: "0 0 6px", letterSpacing: "-0.02em" }}>Welcome back, {user.name.split(" ")[0]} 👋</h1>
+        <p style={{ color: theme.textSub, fontSize: 15, margin: 0 }}>Here's your learning overview for today</p>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 16, marginBottom: 32 }}>
+        {[
+          { label: "Active Bookings", value: confirmed, icon: "📅", color: theme.accent },
+          { label: "Sessions Done", value: completed, icon: "✅", color: theme.success },
+          { label: "Unread Messages", value: unread, icon: "💬", color: theme.warning },
+          { label: "Available Tutors", value: tutors.filter(t => t.available && t.verified === "approved").length, icon: "👨‍🏫", color: "#6366F1" },
+        ].map(s => (
+          <div key={s.label} style={{ background: theme.card, borderRadius: 16, padding: "22px 20px", border: `1px solid ${theme.border}`, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <p style={{ margin: "0 0 8px", fontSize: 12, color: theme.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</p>
+                <p style={{ margin: 0, fontSize: 32, fontWeight: 700, color: theme.text, fontFamily: F.mono }}>{s.value}</p>
+              </div>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: s.color + "18", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{s.icon}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+        <div style={{ background: theme.card, borderRadius: 16, padding: 24, border: `1px solid ${theme.border}` }}>
+          <h3 style={{ fontFamily: F.display, fontSize: 18, color: theme.text, margin: "0 0 16px" }}>Recent Bookings</h3>
+          {bookings.length === 0 ? <EmptyState icon="📅" text="No bookings yet — find a tutor to get started!" /> : bookings.slice(0, 4).map(b => (
+            <div key={b.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${theme.border}` }}>
+              <div><p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 600, color: theme.text }}>{b.tutorName}</p><p style={{ margin: 0, fontSize: 12, color: theme.textSub }}>{b.subject} · {b.date}</p></div>
+              <StatusBadge status={b.status} />
+            </div>
           ))}
-          {user?(
-            <div style={{ display:"flex",alignItems:"center",gap:"10px" }}>
-              {user.plan==="premium"&&<span style={{ background:"#FFF8E1",color:"#B45309",fontSize:"11px",fontWeight:700,padding:"3px 10px",borderRadius:"20px" }}>💎</span>}
-              <div style={{ width:36,height:36,borderRadius:"50%",background:"linear-gradient(135deg,#3B5BDB,#6366F1)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:"13px",fontWeight:700,cursor:"pointer" }}>{user.avatar}</div>
-              <span onClick={()=>setUser(null)} style={{ color:"#94A3B8",fontSize:"13px",cursor:"pointer" }}>Sign out</span>
-            </div>
-          ):(
-            <button onClick={()=>setShowSignIn(true)} style={{ background:"linear-gradient(135deg,#3B5BDB,#6366F1)",color:"#fff",border:"none",borderRadius:"10px",padding:"9px 20px",fontSize:"14px",fontWeight:600,cursor:"pointer" }}>Sign In</button>
-          )}
-          <span onClick={()=>setActivePage("admin")} title="Admin Panel" style={{ color:"#94A3B8",fontSize:"12px",cursor:"pointer",padding:"4px 8px",borderRadius:"6px",border:"1px solid #E2E8F0",fontFamily:"'DM Sans',sans-serif" }}>🛡️ Admin</span>
         </div>
-      </nav>
-
-      {/* PAGES */}
-      {activePage==="tutors"       && <TutorsPage user={user} onSignIn={()=>setShowSignIn(true)} tutors={tutors} onReview={handleTutorReview}/>}
-      {activePage==="upload"       && <UploadPage user={user} onSignIn={()=>setShowSignIn(true)}/>}
-      {activePage==="pricing"      && <PricingPage user={user} onSubscribe={()=>{ if(user) setUser({...user,plan:"premium"}); setActivePage("explore"); }}/>}
-
-      {activePage==="universities"&&(
-        <div style={{ maxWidth:"1200px",margin:"0 auto",padding:"40px 24px" }}>
-          <h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:"32px",color:"#0F172A",marginBottom:"32px" }}>Universities & Colleges in Botswana</h2>
-          <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:"20px" }}>
-            {universities.map(uni=>(
-              <div key={uni.name} onClick={()=>{ setActiveUni(uni.short); setActivePage("explore"); }} style={{ background:"#fff",borderRadius:"16px",padding:"28px",border:"1.5px solid #E8EDF5",cursor:"pointer",transition:"all 0.2s" }}
-                onMouseEnter={e=>{ (e.currentTarget as HTMLDivElement).style.borderColor="#3B5BDB"; (e.currentTarget as HTMLDivElement).style.transform="translateY(-3px)"; }}
-                onMouseLeave={e=>{ (e.currentTarget as HTMLDivElement).style.borderColor="#E8EDF5"; (e.currentTarget as HTMLDivElement).style.transform="none"; }}>
-                <div style={{ fontSize:"36px",marginBottom:"12px" }}>{uni.emoji}</div>
-                <h3 style={{ fontFamily:"'Playfair Display',serif",fontSize:"18px",color:"#0F172A",margin:"0 0 4px" }}>{uni.name}</h3>
-                <p style={{ color:"#64748B",fontSize:"13px",margin:"0 0 16px",fontFamily:"'DM Sans',sans-serif" }}>📍 {uni.location}</p>
-                <div style={{ display:"flex",flexWrap:"wrap",gap:"6px" }}>
-                  {uni.courses.slice(0,3).map(c=><span key={c} style={{ background:"#EAF3FF",color:"#2563EB",fontSize:"11px",fontWeight:600,padding:"3px 10px",borderRadius:"20px",fontFamily:"'DM Sans',sans-serif" }}>{c}</span>)}
-                  {uni.courses.length>3&&<span style={{ background:"#F1F5F9",color:"#64748B",fontSize:"11px",fontWeight:600,padding:"3px 10px",borderRadius:"20px",fontFamily:"'DM Sans',sans-serif" }}>+{uni.courses.length-3} more</span>}
-                </div>
+        <div style={{ background: theme.card, borderRadius: 16, padding: 24, border: `1px solid ${theme.border}` }}>
+          <h3 style={{ fontFamily: F.display, fontSize: 18, color: theme.text, margin: "0 0 16px" }}>Top Rated Tutors</h3>
+          {tutors.filter(t => t.verified === "approved").slice(0, 4).map(t => (
+            <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: `1px solid ${theme.border}` }}>
+              <Avatar initials={t.avatar} size={36} gradient={theme.gradient} />
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 600, color: theme.text }}>{t.name}</p>
+                <p style={{ margin: 0, fontSize: 12, color: theme.textSub }}>{t.subjects.slice(0, 2).join(", ")}</p>
               </div>
-            ))}
-          </div>
+              <StarRow rating={t.rating || 0} />
+            </div>
+          ))}
+          {tutors.filter(t => t.verified === "approved").length === 0 && <EmptyState icon="👨‍🏫" text="No approved tutors yet" />}
         </div>
-      )}
-
-      {activePage==="courses"&&(
-        <div style={{ maxWidth:"1200px",margin:"0 auto",padding:"40px 24px" }}>
-          <h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:"32px",color:"#0F172A",marginBottom:"32px" }}>Courses & Modules</h2>
-          <div style={{ display:"flex",flexDirection:"column",gap:"20px" }}>
-            {universities.map(uni=>(
-              <div key={uni.name} style={{ background:"#fff",borderRadius:"16px",padding:"28px",border:"1.5px solid #E8EDF5" }}>
-                <div style={{ display:"flex",alignItems:"center",gap:"12px",marginBottom:"16px" }}>
-                  <span style={{ fontSize:"28px" }}>{uni.emoji}</span>
-                  <div><h3 style={{ fontFamily:"'Playfair Display',serif",fontSize:"18px",color:"#0F172A",margin:0 }}>{uni.name}</h3><p style={{ color:"#64748B",fontSize:"12px",margin:0,fontFamily:"'DM Sans',sans-serif" }}>📍 {uni.location}</p></div>
-                </div>
-                <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:"10px" }}>
-                  {uni.courses.map(course=>{ const count=docs.filter(d=>d.university===uni.name&&d.course===course).length; return<div key={course} style={{ background:"#F8FAFF",borderRadius:"10px",padding:"12px 16px",border:"1px solid #E8EDF5" }}><p style={{ margin:"0 0 4px",fontWeight:600,fontSize:"13px",color:"#0F172A",fontFamily:"'DM Sans',sans-serif" }}>{course}</p><p style={{ margin:0,fontSize:"12px",color:"#64748B",fontFamily:"'DM Sans',sans-serif" }}>{count} document{count!==1?"s":""}</p></div>; })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {activePage==="explore"&&(
-        <>
-          <div style={{ background:"linear-gradient(135deg,#1E3A8A 0%,#3B5BDB 50%,#6366F1 100%)",padding:"72px 32px 60px",textAlign:"center",position:"relative",overflow:"hidden" }}>
-            <div style={{ position:"absolute",top:-60,right:-60,width:320,height:320,borderRadius:"50%",background:"rgba(255,255,255,0.05)" }}/>
-            <div style={{ position:"relative",zIndex:1 }}>
-              <div style={{ display:"inline-block",background:"rgba(255,255,255,0.15)",borderRadius:"20px",padding:"6px 16px",marginBottom:"20px",color:"rgba(255,255,255,0.9)",fontSize:"13px",fontWeight:600 }}>🇧🇼 BUILT FOR BOTSWANA STUDENTS</div>
-              <h1 style={{ fontFamily:"'Playfair Display',serif",fontSize:"clamp(36px,5vw,60px)",fontWeight:800,color:"#FFFFFF",margin:"0 0 16px",lineHeight:1.15 }}>Study Smarter,<br/><span style={{ color:"#A5B4FC" }}>Not Harder.</span></h1>
-              <p style={{ color:"rgba(255,255,255,0.75)",fontSize:"18px",maxWidth:"520px",margin:"0 auto 36px",lineHeight:1.6 }}>Notes, textbooks, past papers and tutors from UB, BAC, BIUST, Botho and more.</p>
-              <div style={{ maxWidth:"580px",margin:"0 auto",background:"white",borderRadius:"14px",display:"flex",alignItems:"center",padding:"6px 6px 6px 20px",boxShadow:"0 20px 60px rgba(0,0,0,0.2)" }}>
-                <span style={{ fontSize:"18px",marginRight:"10px" }}>🔍</span>
-                <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search notes, modules, universities..." style={{ flex:1,border:"none",outline:"none",fontSize:"15px",color:"#0F172A",background:"transparent",fontFamily:"'DM Sans',sans-serif" }}/>
-                <button style={{ background:"linear-gradient(135deg,#3B5BDB,#6366F1)",color:"white",border:"none",borderRadius:"10px",padding:"12px 24px",fontSize:"14px",fontWeight:600,cursor:"pointer" }}>Search</button>
-              </div>
-              <div style={{ display:"flex",justifyContent:"center",gap:"40px",marginTop:"40px",flexWrap:"wrap" }}>
-                {([["500+","Documents"],["7+","Institutions"],["6","Tutors"]] as [string,string][]).map(([num,label])=>(
-                  <div key={label} style={{ textAlign:"center" }}>
-                    <div style={{ fontSize:"26px",fontWeight:800,color:"#FFFFFF",fontFamily:"'Playfair Display',serif" }}>{num}</div>
-                    <div style={{ fontSize:"13px",color:"rgba(255,255,255,0.65)",marginTop:"2px" }}>{label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div style={{ maxWidth:"1200px",margin:"0 auto",padding:"40px 24px" }}>
-            <div style={{ display:"flex",gap:"16px",marginBottom:"20px",flexWrap:"wrap",justifyContent:"space-between" }}>
-              <div style={{ display:"flex",gap:"8px",flexWrap:"wrap" }}>
-                {allUnis.map(uni=><button key={uni} onClick={()=>setActiveUni(uni)} style={{ padding:"8px 16px",borderRadius:"20px",fontSize:"13px",fontWeight:600,border:activeUni===uni?"none":"1.5px solid #E2E8F0",background:activeUni===uni?"linear-gradient(135deg,#3B5BDB,#6366F1)":"#fff",color:activeUni===uni?"#fff":"#64748B",cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>{uni}</button>)}
-              </div>
-              <div style={{ display:"flex",gap:"8px",flexWrap:"wrap" }}>
-                {docTypes.map(type=><button key={type} onClick={()=>setActiveType(type)} style={{ padding:"8px 16px",borderRadius:"20px",fontSize:"13px",fontWeight:600,border:activeType===type?"none":"1.5px solid #E2E8F0",background:activeType===type?"#0F172A":"#fff",color:activeType===type?"#fff":"#64748B",cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>{type}</button>)}
-              </div>
-            </div>
-            <div style={{ marginBottom:"20px",color:"#64748B",fontSize:"14px",fontFamily:"'DM Sans',sans-serif" }}>
-              Showing <strong style={{ color:"#0F172A" }}>{filtered.length}</strong> documents{search&&<> for &quot;<strong style={{ color:"#3B5BDB" }}>{search}</strong>&quot;</>}
-            </div>
-            <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:"20px" }}>
-              {filtered.length>0?filtered.map(doc=><DocCard key={doc.id} doc={doc} onOpen={setSelectedDoc}/>):(
-                <div style={{ gridColumn:"1/-1",textAlign:"center",padding:"80px 0" }}><div style={{ fontSize:"48px",marginBottom:"16px" }}>🔍</div><p style={{ fontSize:"18px",fontWeight:600,color:"#475569" }}>No documents found</p></div>
-              )}
-            </div>
-          </div>
-
-          <div style={{ background:"linear-gradient(135deg,#0F172A,#1E3A8A)",margin:"20px 24px 0",borderRadius:"24px",padding:"56px 40px",textAlign:"center",maxWidth:"1152px",marginLeft:"auto",marginRight:"auto" }}>
-            <h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:"36px",color:"#fff",margin:"0 0 12px" }}>Unlock All Study Materials</h2>
-            <p style={{ color:"rgba(255,255,255,0.65)",fontSize:"16px",maxWidth:"480px",margin:"0 auto 28px",lineHeight:1.6 }}>Get full access to all notes, textbooks, past papers and connect with top tutors.</p>
-            <button onClick={()=>setActivePage("pricing")} style={{ background:"linear-gradient(135deg,#6366F1,#3B5BDB)",color:"#fff",border:"none",borderRadius:"12px",padding:"14px 32px",fontSize:"15px",fontWeight:700,cursor:"pointer",marginRight:"12px" }}>View Plans →</button>
-            <button onClick={()=>setActivePage("tutors")} style={{ background:"transparent",color:"rgba(255,255,255,0.75)",border:"1.5px solid rgba(255,255,255,0.25)",borderRadius:"12px",padding:"14px 32px",fontSize:"15px",fontWeight:600,cursor:"pointer" }}>Find a Tutor</button>
-          </div>
-        </>
-      )}
-
-      <footer style={{ borderTop:"1px solid #E8EDF5",marginTop:"60px",padding:"32px",textAlign:"center",color:"#94A3B8",fontSize:"13px",fontFamily:"'DM Sans',sans-serif" }}>
-        <div style={{ display:"flex",justifyContent:"center",alignItems:"center",gap:"8px",marginBottom:"12px" }}>
-          <div style={{ width:26,height:26,borderRadius:"8px",background:"linear-gradient(135deg,#3B5BDB,#6366F1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"13px" }}>📚</div>
-          <span style={{ fontFamily:"'Playfair Display',serif",fontSize:"17px",fontWeight:700,color:"#0F172A" }}>NoteFlow</span>
-        </div>
-        <p style={{ margin:0 }}>© 2024 NoteFlow · Built for Botswana students 🇧🇼</p>
-      </footer>
+      </div>
     </div>
   );
+}
+
+function StudentTutors({ user, tutors, bookings, setBookings, setPayments, reviews, theme }: { user: User; tutors: TutorProfile[]; bookings: Booking[]; setBookings: React.Dispatch<React.SetStateAction<Booking[]>>; setPayments: React.Dispatch<React.SetStateAction<Payment[]>>; reviews: Review[]; theme: AnyTheme }) {
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<TutorProfile | null>(null);
+  const [bookModal, setBookModal] = useState(false);
+  const [date, setDate] = useState(""); const [time, setTime] = useState(""); const [subject, setSubject] = useState(""); const [note, setNote] = useState("");
+  const [booked, setBooked] = useState(false);
+
+  const approved = tutors.filter(t => t.verified === "approved");
+  const filtered = approved.filter(t => !search || t.name.toLowerCase().includes(search.toLowerCase()) || t.subjects.some(s => s.toLowerCase().includes(search.toLowerCase())));
+  const tutorReviews = selected ? reviews.filter(r => r.tutorId === selected.id) : [];
+
+  const doBook = () => {
+    if (!selected || !date || !time || !subject) { alert("Please fill all fields."); return; }
+    const nb: Booking = { id: Date.now(), studentId: user.id, tutorId: selected.id, studentName: user.name, tutorName: selected.name, subject, date, time, status: "pending", note, amount: selected.rate, createdAt: new Date().toISOString() };
+    setBookings(p => [...p, nb]);
+    setPayments(p => [...p, { id: Date.now()+1, studentId: user.id, tutorId: selected.id, bookingId: nb.id, studentName: user.name, tutorName: selected.name, amount: selected.rate, status: "pending", date: new Date().toLocaleDateString("en-GB"), method: "Card" }]);
+    setBooked(true);
+  };
+
+  const inp: React.CSSProperties = { width: "100%", padding: "11px 14px", borderRadius: 10, border: `1.5px solid ${theme.border}`, background: theme.bg, color: theme.text, fontSize: 14, fontFamily: F.body, outline: "none", boxSizing: "border-box" };
+
+  if (selected) return (
+    <div>
+      <button onClick={() => { setSelected(null); setBooked(false); setBookModal(false); }} style={{ background: "none", border: "none", color: theme.accent, cursor: "pointer", fontSize: 14, fontFamily: F.body, marginBottom: 20, display: "flex", alignItems: "center", gap: 6 }}>← Back to Tutors</button>
+      <div style={{ background: theme.card, borderRadius: 20, border: `1px solid ${theme.border}`, overflow: "hidden", marginBottom: 24 }}>
+        <div style={{ background: theme.gradient, padding: "32px 28px", display: "flex", gap: 20, alignItems: "center" }}>
+          <Avatar initials={selected.avatar} size={72} gradient="rgba(255,255,255,0.2)" />
+          <div>
+            <h2 style={{ fontFamily: F.display, fontSize: 26, fontWeight: 900, color: "#fff", margin: "0 0 4px" }}>{selected.name}</h2>
+            <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 14, margin: "0 0 8px" }}>🎓 {selected.university}</p>
+            <StarRow rating={selected.rating} size={15} />
+            <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, marginLeft: 8 }}>({selected.reviewCount} reviews)</span>
+          </div>
+          <div style={{ marginLeft: "auto", textAlign: "right" }}>
+            <p style={{ fontFamily: F.display, fontSize: 32, fontWeight: 900, color: "#fff", margin: "0 0 4px" }}>P{selected.rate}/hr</p>
+            <span style={{ background: selected.available ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)", color: "#fff", fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 20 }}>{selected.available ? "✅ Available" : "❌ Busy"}</span>
+          </div>
+        </div>
+        <div style={{ padding: "28px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20, marginBottom: 24 }}>
+            <div><h4 style={{ color: theme.textMuted, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 10px" }}>Subjects</h4>{selected.subjects.map(s => <span key={s} style={{ display: "inline-block", background: theme.accentLight, color: theme.accent, fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 20, marginRight: 6, marginBottom: 6 }}>{s}</span>)}</div>
+            <div><h4 style={{ color: theme.textMuted, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 10px" }}>Qualifications</h4>{selected.qualifications.map(q => <p key={q} style={{ margin: "0 0 4px", fontSize: 13, color: theme.text }}>🎓 {q}</p>)}</div>
+            <div><h4 style={{ color: theme.textMuted, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 10px" }}>About</h4><p style={{ margin: 0, fontSize: 13, color: theme.textSub, lineHeight: 1.6 }}>{selected.bio || "No bio provided."}</p></div>
+          </div>
+          {!booked ? (
+            <>
+              {!bookModal ? (
+                <button onClick={() => setBookModal(true)} disabled={!selected.available} style={{ background: selected.available ? theme.gradient : "#e2e8f0", color: "#fff", border: "none", borderRadius: 12, padding: "13px 28px", fontSize: 15, fontWeight: 700, cursor: selected.available ? "pointer" : "not-allowed", fontFamily: F.body }}>📅 Book a Session</button>
+              ) : (
+                <div style={{ background: theme.bg, border: `1.5px solid ${theme.accent}`, borderRadius: 16, padding: 24 }}>
+                  <h4 style={{ fontFamily: F.display, fontSize: 18, color: theme.text, margin: "0 0 18px" }}>Book a Session with {selected.name}</h4>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+                    <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: theme.textSub, marginBottom: 6, textTransform: "uppercase" }}>Date</label><input type="date" value={date} onChange={e => setDate(e.target.value)} style={inp} /></div>
+                    <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: theme.textSub, marginBottom: 6, textTransform: "uppercase" }}>Time</label><input type="time" value={time} onChange={e => setTime(e.target.value)} style={inp} /></div>
+                  </div>
+                  <div style={{ marginBottom: 14 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: theme.textSub, marginBottom: 6, textTransform: "uppercase" }}>Subject</label><input value={subject} onChange={e => setSubject(e.target.value)} placeholder="e.g. Binary Trees, SQL Joins" style={inp} /></div>
+                  <div style={{ marginBottom: 18 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: theme.textSub, marginBottom: 6, textTransform: "uppercase" }}>Notes (optional)</label><textarea value={note} onChange={e => setNote(e.target.value)} rows={2} style={{ ...inp, resize: "vertical" }} /></div>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button onClick={doBook} style={{ background: theme.gradient, color: "#fff", border: "none", borderRadius: 10, padding: "11px 24px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: F.body }}>Confirm & Pay P{selected.rate}</button>
+                    <button onClick={() => setBookModal(false)} style={{ background: theme.bg, border: `1px solid ${theme.border}`, color: theme.textSub, borderRadius: 10, padding: "11px 20px", fontSize: 14, cursor: "pointer", fontFamily: F.body }}>Cancel</button>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div style={{ background: "#D8F3DC", borderRadius: 14, padding: "20px 24px" }}>
+              <p style={{ color: "#2D6A4F", fontWeight: 700, margin: "0 0 4px", fontSize: 15 }}>✅ Booking Requested!</p>
+              <p style={{ color: "#2D6A4F", margin: 0, fontSize: 13 }}>Your session request has been sent to {selected.name}. They will confirm shortly.</p>
+            </div>
+          )}
+        </div>
+      </div>
+      {/* Reviews */}
+      <div style={{ background: theme.card, borderRadius: 16, padding: 24, border: `1px solid ${theme.border}` }}>
+        <h3 style={{ fontFamily: F.display, fontSize: 20, color: theme.text, margin: "0 0 20px" }}>Student Reviews</h3>
+        {tutorReviews.length === 0 ? <EmptyState icon="⭐" text="No reviews yet for this tutor" /> : tutorReviews.map(r => (
+          <div key={r.id} style={{ padding: "14px 0", borderBottom: `1px solid ${theme.border}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <Avatar initials={r.studentName.split(" ").map(w=>w[0]).join("").slice(0,2)} size={32} />
+                <span style={{ fontWeight: 600, fontSize: 14, color: theme.text }}>{r.studentName}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}><StarRow rating={r.rating} /><span style={{ color: theme.textMuted, fontSize: 12 }}>{r.date}</span></div>
+            </div>
+            <p style={{ margin: 0, fontSize: 13, color: theme.textSub, lineHeight: 1.6 }}>{r.comment}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <div>
+      <PageHeader title="Find a Tutor" sub={`${filtered.length} approved tutors available`} theme={th} />
+      <div style={{ background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 12, padding: "0 16px", display: "flex", alignItems: "center", marginBottom: 24 }}>
+        <span style={{ fontSize: 16, marginRight: 8 }}>🔍</span>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or subject..." style={{ flex: 1, border: "none", outline: "none", fontSize: 14, color: theme.text, background: "transparent", fontFamily: F.body, padding: "13px 0" }} />
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 20 }}>
+        {filtered.length === 0 ? <div style={{ gridColumn: "1/-1" }}><EmptyState icon="👨‍🏫" text="No approved tutors match your search" /></div> : filtered.map(t => (
+          <TutorCard key={t.id} tutor={t} theme={theme} onClick={() => setSelected(t)} reviews={reviews.filter(r => r.tutorId === t.id)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TutorCard({ tutor, theme, onClick, reviews }: { tutor: TutorProfile; theme: AnyTheme; onClick: () => void; reviews: Review[] }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} onClick={onClick}
+      style={{ background: theme.card, borderRadius: 16, padding: 24, border: hov ? `1.5px solid ${theme.accent}` : `1.5px solid ${theme.border}`, cursor: "pointer", transition: "all 0.2s", transform: hov ? "translateY(-3px)" : "none", boxShadow: hov ? `0 8px 24px ${theme.accent}18` : "0 2px 8px rgba(0,0,0,0.04)" }}>
+      <div style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 14 }}>
+        <Avatar initials={tutor.avatar} size={52} gradient={theme.gradient} />
+        <div style={{ flex: 1 }}>
+          <h3 style={{ fontFamily: F.display, fontSize: 17, color: theme.text, margin: "0 0 2px" }}>{tutor.name}</h3>
+          <p style={{ color: theme.textSub, fontSize: 12, margin: "0 0 6px" }}>🎓 {tutor.university}</p>
+          <StarRow rating={tutor.rating} /><span style={{ color: theme.textMuted, fontSize: 12, marginLeft: 4 }}>({reviews.length})</span>
+        </div>
+        <span style={{ background: tutor.available ? "#D8F3DC" : "#FEE2E2", color: tutor.available ? "#2D6A4F" : "#DC2626", fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 20 }}>{tutor.available ? "Available" : "Busy"}</span>
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+        {tutor.subjects.slice(0, 3).map(s => <span key={s} style={{ background: theme.accentLight, color: theme.accent, fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>{s}</span>)}
+        {tutor.subjects.length > 3 && <span style={{ background: theme.border, color: theme.textMuted, fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>+{tutor.subjects.length - 3}</span>}
+      </div>
+      <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <p style={{ margin: 0, fontSize: 13, color: theme.textSub, lineHeight: 1.4 }}>{tutor.bio?.slice(0, 60)}...</p>
+        <span style={{ fontFamily: F.display, fontSize: 18, fontWeight: 700, color: theme.accent, flexShrink: 0, marginLeft: 8 }}>P{tutor.rate}/hr</span>
+      </div>
+    </div>
+  );
+}
+
+function StudentBookings({ user, bookings, setBookings, theme }: { user: User; bookings: Booking[]; setBookings: React.Dispatch<React.SetStateAction<Booking[]>>; theme: AnyTheme }) {
+  const cancel = (id: number) => setBookings(p => p.map(b => b.id === id ? { ...b, status: "cancelled" } : b));
+  return (
+    <div>
+      <PageHeader title="My Bookings" sub={`${bookings.length} total bookings`} theme={th} />
+      {bookings.length === 0 ? <EmptyState icon="📅" text="No bookings yet — find a tutor and book your first session!" /> : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {bookings.map(b => (
+            <div key={b.id} style={{ background: theme.card, borderRadius: 16, padding: 20, border: `1px solid ${theme.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+              <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+                <Avatar initials={b.tutorName.split(" ").map(w=>w[0]).join("").slice(0,2)} size={44} gradient={theme.gradient} />
+                <div>
+                  <p style={{ margin: "0 0 2px", fontSize: 15, fontWeight: 600, color: theme.text }}>{b.tutorName}</p>
+                  <p style={{ margin: "0 0 2px", fontSize: 13, color: theme.textSub }}>{b.subject}</p>
+                  <p style={{ margin: 0, fontSize: 12, color: theme.textMuted }}>📅 {b.date} at {b.time}</p>
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <p style={{ margin: 0, fontFamily: F.mono, fontSize: 16, fontWeight: 700, color: theme.accent }}>P{b.amount}</p>
+                <StatusBadge status={b.status} />
+                {b.status === "pending" && <button onClick={() => cancel(b.id)} style={{ background: "#FEE2E2", color: "#DC2626", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: F.body }}>Cancel</button>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StudentMessages({ user, messages, setMessages, tutors, theme }: { user: User; messages: Message[]; setMessages: React.Dispatch<React.SetStateAction<Message[]>>; tutors: TutorProfile[]; theme: AnyTheme }) {
+  const [activeConv, setActiveConv] = useState<number | null>(null);
+  const [newMsg, setNewMsg] = useState("");
+  const endRef = useRef<HTMLDivElement>(null);
+
+  const conversations = tutors.map(t => {
+    const msgs = messages.filter(m => (m.senderId === user.id && m.receiverId === t.userId) || (m.senderId === t.userId && m.receiverId === user.id));
+    return { tutor: t, msgs, lastMsg: msgs[msgs.length - 1], unread: msgs.filter(m => m.receiverId === user.id && !m.read).length };
+  }).filter(c => c.msgs.length > 0 || activeConv === c.tutor.userId);
+
+  const activeTutor = tutors.find(t => t.userId === activeConv);
+  const convMsgs = activeConv ? messages.filter(m => (m.senderId === user.id && m.receiverId === activeConv) || (m.senderId === activeConv && m.receiverId === user.id)) : [];
+
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [convMsgs.length]);
+
+  const sendMsg = () => {
+    if (!newMsg.trim() || !activeConv) return;
+    setMessages(p => [...p, { id: Date.now(), senderId: user.id, receiverId: activeConv, senderName: user.name, text: newMsg, timestamp: new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }), read: false }]);
+    setNewMsg("");
+  };
+
+  return (
+    <div>
+      <PageHeader title="Messages" sub="Chat with your tutors" theme={th} />
+      <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 20, height: 600 }}>
+        {/* Sidebar */}
+        <div style={{ background: theme.card, borderRadius: 16, border: `1px solid ${theme.border}`, overflow: "hidden" }}>
+          <div style={{ padding: "14px 16px", borderBottom: `1px solid ${theme.border}` }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: theme.textMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>Conversations</p>
+          </div>
+          <div style={{ padding: 12 }}>
+            {tutors.filter(t => t.verified === "approved").map(t => (
+              <div key={t.id} onClick={() => { setActiveConv(t.userId); setMessages(p => p.map(m => m.receiverId === user.id && m.senderId === t.userId ? { ...m, read: true } : m)); }}
+                style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 10, cursor: "pointer", background: activeConv === t.userId ? theme.accentLight : "transparent", marginBottom: 4 }}>
+                <Avatar initials={t.avatar} size={36} gradient={theme.gradient} />
+                <div style={{ flex: 1, overflow: "hidden" }}>
+                  <p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 600, color: theme.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</p>
+                  <p style={{ margin: 0, fontSize: 11, color: theme.textMuted }}>{t.subjects[0]}</p>
+                </div>
+              </div>
+            ))}
+            {tutors.filter(t => t.verified === "approved").length === 0 && <EmptyState icon="💬" text="No approved tutors to message" />}
+          </div>
+        </div>
+        {/* Chat area */}
+        <div style={{ background: theme.card, borderRadius: 16, border: `1px solid ${theme.border}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          {!activeConv ? (
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <EmptyState icon="💬" text="Select a tutor to start messaging" />
+            </div>
+          ) : (
+            <>
+              <div style={{ padding: "14px 20px", borderBottom: `1px solid ${theme.border}`, display: "flex", alignItems: "center", gap: 12 }}>
+                <Avatar initials={activeTutor?.avatar || "??"} size={36} gradient={theme.gradient} />
+                <div><p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 600, color: theme.text }}>{activeTutor?.name}</p><p style={{ margin: 0, fontSize: 12, color: theme.textSub }}>{activeTutor?.available ? "🟢 Available" : "🔴 Busy"}</p></div>
+              </div>
+              <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+                {convMsgs.length === 0 && <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}><EmptyState icon="💬" text="No messages yet — say hello!" /></div>}
+                {convMsgs.map(m => {
+                  const mine = m.senderId === user.id;
+                  return (
+                    <div key={m.id} style={{ display: "flex", justifyContent: mine ? "flex-end" : "flex-start" }}>
+                      <div style={{ background: mine ? theme.gradient : theme.bg, color: mine ? "#fff" : theme.text, borderRadius: mine ? "16px 16px 4px 16px" : "16px 16px 16px 4px", padding: "10px 16px", maxWidth: "70%", fontSize: 14, lineHeight: 1.5 }}>
+                        <p style={{ margin: "0 0 4px" }}>{m.text}</p>
+                        <p style={{ margin: 0, fontSize: 11, opacity: 0.7 }}>{m.timestamp}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div ref={endRef} />
+              </div>
+              <div style={{ padding: "12px 16px", borderTop: `1px solid ${theme.border}`, display: "flex", gap: 10 }}>
+                <input value={newMsg} onChange={e => setNewMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendMsg()} placeholder="Type a message..." style={{ flex: 1, padding: "10px 14px", borderRadius: 10, border: `1px solid ${theme.border}`, background: theme.bg, color: theme.text, fontSize: 14, fontFamily: F.body, outline: "none" }} />
+                <button onClick={sendMsg} style={{ background: theme.gradient, color: "#fff", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 600, cursor: "pointer", fontFamily: F.body }}>Send</button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StudentPayments({ user, payments, theme }: { user: User; payments: Payment[]; theme: AnyTheme }) {
+  const total = payments.filter(p => p.status === "completed").reduce((s, p) => s + p.amount, 0);
+  return (
+    <div>
+      <PageHeader title="Payments" sub="Your transaction history" theme={th} />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 14, marginBottom: 24 }}>
+        {[
+          { label: "Total Spent", value: `P${total}`, icon: "💰", color: theme.danger },
+          { label: "Pending", value: `P${payments.filter(p => p.status === "pending").reduce((s, p) => s + p.amount, 0)}`, icon: "⏳", color: theme.warning },
+          { label: "Sessions Paid", value: payments.filter(p => p.status === "completed").length, icon: "✅", color: theme.success },
+        ].map(s => (
+          <div key={s.label} style={{ background: theme.card, borderRadius: 14, padding: "20px", border: `1px solid ${theme.border}` }}>
+            <p style={{ margin: "0 0 8px", fontSize: 11, color: theme.textMuted, fontWeight: 600, textTransform: "uppercase" }}>{s.label}</p>
+            <p style={{ margin: 0, fontSize: 26, fontWeight: 700, color: theme.text, fontFamily: F.mono }}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+      <div style={{ background: theme.card, borderRadius: 16, border: `1px solid ${theme.border}`, overflow: "hidden" }}>
+        <div style={{ padding: "16px 20px", borderBottom: `1px solid ${theme.border}` }}><h3 style={{ margin: 0, fontFamily: F.display, fontSize: 18, color: theme.text }}>Transaction History</h3></div>
+        {payments.length === 0 ? <EmptyState icon="💳" text="No transactions yet" /> : payments.map(p => (
+          <div key={p.id} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", padding: "14px 20px", borderBottom: `1px solid ${theme.border}`, alignItems: "center" }}>
+            <span style={{ fontSize: 13, color: theme.text, fontWeight: 500 }}>{p.tutorName}</span>
+            <span style={{ fontSize: 12, color: theme.textSub }}>{p.date}</span>
+            <span style={{ fontSize: 14, color: theme.accent, fontFamily: F.mono, fontWeight: 700 }}>P{p.amount}</span>
+            <Badge label={p.status} color={p.status === "completed" ? T.student.success : p.status === "pending" ? T.student.warning : T.student.danger} bg={p.status === "completed" ? "#D8F3DC" : p.status === "pending" ? "#FFF3CD" : "#FEE2E2"} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StudentReviews({ user, reviews, tutors, setReviews, bookings, theme }: { user: User; reviews: Review[]; tutors: TutorProfile[]; setReviews: React.Dispatch<React.SetStateAction<Review[]>>; bookings: Booking[]; theme: AnyTheme }) {
+  const [showForm, setShowForm] = useState(false);
+  const [selTutor, setSelTutor] = useState<number | null>(null);
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState("");
+
+  const completedTutors = [...new Set(bookings.filter(b => b.status === "completed").map(b => b.tutorId))];
+  const submit = () => {
+    if (!selTutor || !rating || !comment) { alert("Please fill all fields."); return; }
+    const tutor = tutors.find(t => t.id === selTutor);
+    if (!tutor) return;
+    setReviews(p => [...p, { id: Date.now(), studentId: user.id, tutorId: selTutor, studentName: user.name, tutorName: tutor.name, rating, comment, date: new Date().toLocaleDateString("en-GB", { month: "short", year: "numeric" }), flagged: false, hidden: false }]);
+    setShowForm(false); setRating(0); setComment(""); setSelTutor(null);
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+        <PageHeader title="My Reviews" sub={`${reviews.length} reviews written`} theme={th} inline />
+        {completedTutors.length > 0 && <button onClick={() => setShowForm(true)} style={{ background: theme.gradient, color: "#fff", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: F.body }}>✍️ Write a Review</button>}
+      </div>
+      {showForm && (
+        <div style={{ background: theme.card, border: `1.5px solid ${theme.accent}`, borderRadius: 16, padding: 24, marginBottom: 24 }}>
+          <h4 style={{ fontFamily: F.display, fontSize: 18, color: theme.text, margin: "0 0 18px" }}>Write a Review</h4>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: theme.textSub, marginBottom: 6, textTransform: "uppercase" }}>Select Tutor</label>
+            <select value={selTutor || ""} onChange={e => setSelTutor(Number(e.target.value))} style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: `1px solid ${theme.border}`, background: theme.bg, color: theme.text, fontSize: 14, fontFamily: F.body, outline: "none" }}>
+              <option value="">— Select a tutor —</option>
+              {completedTutors.map(id => { const t = tutors.find(t => t.id === id); return t ? <option key={id} value={id}>{t.name}</option> : null; })}
+            </select>
+          </div>
+          <div style={{ marginBottom: 14 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: theme.textSub, marginBottom: 6, textTransform: "uppercase" }}>Rating</label><StarPicker value={rating} onChange={setRating} /></div>
+          <div style={{ marginBottom: 16 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: theme.textSub, marginBottom: 6, textTransform: "uppercase" }}>Comment</label><textarea value={comment} onChange={e => setComment(e.target.value)} rows={3} style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: `1px solid ${theme.border}`, background: theme.bg, color: theme.text, fontSize: 14, fontFamily: F.body, outline: "none", resize: "vertical", boxSizing: "border-box" }} /></div>
+          <div style={{ display: "flex", gap: 10 }}><button onClick={submit} style={{ background: theme.gradient, color: "#fff", border: "none", borderRadius: 10, padding: "10px 22px", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: F.body }}>Submit Review</button><button onClick={() => setShowForm(false)} style={{ background: theme.bg, border: `1px solid ${theme.border}`, color: theme.textSub, borderRadius: 10, padding: "10px 20px", fontSize: 14, cursor: "pointer", fontFamily: F.body }}>Cancel</button></div>
+        </div>
+      )}
+      {reviews.length === 0 ? <EmptyState icon="⭐" text="No reviews yet. Complete a session to leave a review!" /> : reviews.map(r => (
+        <div key={r.id} style={{ background: theme.card, borderRadius: 14, padding: "16px 20px", border: `1px solid ${theme.border}`, marginBottom: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: theme.text }}>Review for {r.tutorName}</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}><StarRow rating={r.rating} /><span style={{ color: theme.textMuted, fontSize: 12 }}>{r.date}</span></div>
+          </div>
+          <p style={{ margin: 0, fontSize: 13, color: theme.textSub, lineHeight: 1.6 }}>{r.comment}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TUTOR DASHBOARD
+// ═══════════════════════════════════════════════════════════════════════════════
+function TutorDashboard({ user, ...shared }: { user: User } & SharedProps) {
+  const [tab, setTab] = useState("home");
+  const th = T.tutor;
+  const { tutors, setTutors, bookings, setBookings, messages, setMessages, reviews, payments } = shared;
+
+  const myProfile = tutors.find(t => t.userId === user.id);
+  const myBookings = bookings.filter(b => b.tutorId === (myProfile?.id || -1));
+  const myMessages = messages.filter(m => m.receiverId === user.id);
+  const newRequests = myBookings.filter(b => b.status === "pending").length;
+  const unreadMsgs = myMessages.filter(m => !m.read).length;
+
+  const navItems = [
+    { id: "home",     label: "Overview",      icon: "◈" },
+    { id: "requests", label: "Student Requests", icon: "📥", badge: newRequests },
+    { id: "schedule", label: "Schedule",       icon: "📅" },
+    { id: "messages", label: "Messages",       icon: "💬", badge: unreadMsgs },
+    { id: "earnings", label: "Earnings",       icon: "💰" },
+    { id: "reviews",  label: "My Reviews",     icon: "⭐" },
+    { id: "profile",  label: "My Profile",     icon: "👤" },
+  ];
+
+  if (!myProfile) return (
+    <Shell navItems={navItems} activeTab={tab} setActiveTab={setTab} user={user} theme={th}>
+      <EmptyState icon="⏳" text="Your profile is being set up. Please refresh or contact admin if this persists." />
+    </Shell>
+  );
+
+  return (
+    <Shell navItems={navItems} activeTab={tab} setActiveTab={setTab} user={user} theme={th}>
+      {tab === "home"     && <TutorHome     profile={myProfile} bookings={myBookings} messages={myMessages} reviews={reviews.filter(r => r.tutorId === myProfile.id)} theme={th} />}
+      {tab === "requests" && <TutorRequests profile={myProfile} bookings={myBookings} setBookings={setBookings} theme={th} />}
+      {tab === "schedule" && <TutorSchedule profile={myProfile} bookings={myBookings} setTutors={setTutors} theme={th} />}
+      {tab === "messages" && <TutorMessages user={user} messages={messages} setMessages={setMessages} bookings={myBookings} theme={th} />}
+      {tab === "earnings" && <TutorEarnings profile={myProfile} bookings={myBookings} payments={payments.filter(p => p.tutorId === myProfile.id)} theme={th} />}
+      {tab === "reviews"  && <TutorReviewsTab reviews={reviews.filter(r => r.tutorId === myProfile.id)} theme={th} />}
+      {tab === "profile"  && <TutorProfileTab profile={myProfile} setTutors={setTutors} theme={th} />}
+    </Shell>
+  );
+}
+
+function TutorHome({ profile, bookings, messages, reviews, theme }: { profile: TutorProfile; bookings: Booking[]; messages: Message[]; reviews: Review[]; theme: AnyTheme }) {
+  const pending = bookings.filter(b => b.status === "pending").length;
+  const confirmed = bookings.filter(b => b.status === "confirmed").length;
+  const earned = bookings.filter(b => b.status === "completed").reduce((s, b) => s + b.amount, 0);
+  const unread = messages.filter(m => !m.read).length;
+  const avgRating = reviews.length ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1) : "—";
+  return (
+    <div>
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12 }}>
+          <h1 style={{ fontFamily: F.display, fontSize: 32, fontWeight: 900, color: theme.text, margin: 0, letterSpacing: "-0.02em" }}>Welcome, {profile.name.split(" ")[0]}</h1>
+          {profile.verified === "pending" && <Badge label="Verification Pending" color={theme.warning} bg={theme.accentLight} />}
+          {profile.verified === "approved" && <Badge label="✓ Verified" color={theme.success} bg="rgba(67,217,173,0.12)" />}
+          {profile.verified === "rejected" && <Badge label="Not Verified" color={theme.danger} bg="rgba(255,107,107,0.12)" />}
+        </div>
+        <p style={{ color: theme.textSub, fontSize: 15, margin: 0 }}>{profile.verified === "pending" ? "Your profile is under review by admin." : "Here's your tutoring dashboard overview."}</p>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 16, marginBottom: 32 }}>
+        {[
+          { label: "Pending Requests", value: pending, icon: "📥", color: theme.warning },
+          { label: "Active Sessions",  value: confirmed, icon: "📅", color: theme.accent },
+          { label: "Total Earned",     value: `P${earned}`, icon: "💰", color: theme.success },
+          { label: "Avg. Rating",      value: avgRating, icon: "⭐", color: "#F59E0B" },
+          { label: "Unread Messages",  value: unread, icon: "💬", color: "#6366F1" },
+          { label: "Total Reviews",    value: reviews.length, icon: "📝", color: theme.textSub },
+        ].map(s => (
+          <div key={s.label} style={{ background: theme.card, borderRadius: 16, padding: "20px", border: `1px solid ${theme.border}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <p style={{ margin: "0 0 8px", fontSize: 11, color: theme.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</p>
+                <p style={{ margin: 0, fontSize: 28, fontWeight: 700, color: theme.text, fontFamily: F.mono }}>{s.value}</p>
+              </div>
+              <div style={{ width: 38, height: 38, borderRadius: 12, background: s.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{s.icon}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+        <div style={{ background: theme.card, borderRadius: 16, padding: 24, border: `1px solid ${theme.border}` }}>
+          <h3 style={{ fontFamily: F.display, fontSize: 18, color: theme.text, margin: "0 0 16px" }}>Latest Requests</h3>
+          {bookings.filter(b => b.status === "pending").slice(0, 4).length === 0 ? <EmptyState icon="📥" text="No pending requests" /> : bookings.filter(b => b.status === "pending").slice(0, 4).map(b => (
+            <div key={b.id} style={{ padding: "10px 0", borderBottom: `1px solid ${theme.border}` }}>
+              <p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 600, color: theme.text }}>{b.studentName}</p>
+              <p style={{ margin: 0, fontSize: 12, color: theme.textSub }}>{b.subject} · {b.date}</p>
+            </div>
+          ))}
+        </div>
+        <div style={{ background: theme.card, borderRadius: 16, padding: 24, border: `1px solid ${theme.border}` }}>
+          <h3 style={{ fontFamily: F.display, fontSize: 18, color: theme.text, margin: "0 0 16px" }}>Recent Reviews</h3>
+          {reviews.slice(0, 3).length === 0 ? <EmptyState icon="⭐" text="No reviews yet" /> : reviews.slice(0, 3).map(r => (
+            <div key={r.id} style={{ padding: "10px 0", borderBottom: `1px solid ${theme.border}` }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: theme.text }}>{r.studentName}</p>
+                <StarRow rating={r.rating} />
+              </div>
+              <p style={{ margin: 0, fontSize: 12, color: theme.textSub }}>{r.comment.slice(0, 80)}...</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TutorRequests({ profile, bookings, setBookings, theme }: { profile: TutorProfile; bookings: Booking[]; setBookings: React.Dispatch<React.SetStateAction<Booking[]>>; theme: AnyTheme }) {
+  const confirm = (id: number) => setBookings(p => p.map(b => b.id === id ? { ...b, status: "confirmed" } : b));
+  const decline = (id: number) => setBookings(p => p.map(b => b.id === id ? { ...b, status: "cancelled" } : b));
+  const complete = (id: number) => setBookings(p => p.map(b => b.id === id ? { ...b, status: "completed" } : b));
+  const pending = bookings.filter(b => b.status === "pending");
+  const others = bookings.filter(b => b.status !== "pending");
+  return (
+    <div>
+      <PageHeader title="Student Requests" sub={`${pending.length} pending requests`} theme={th} tutor />
+      {pending.length > 0 && (
+        <div style={{ marginBottom: 28 }}>
+          <p style={{ fontSize: 12, fontWeight: 600, color: theme.textMuted, textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 12px" }}>Pending ({pending.length})</p>
+          {pending.map(b => (
+            <div key={b.id} style={{ background: theme.card, borderRadius: 16, padding: 20, border: `1px solid ${theme.accent}44`, marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                  <Avatar initials={b.studentName.split(" ").map(w=>w[0]).join("").slice(0,2)} size={44} gradient={theme.gradient} />
+                  <div><p style={{ margin: "0 0 2px", fontSize: 15, fontWeight: 600, color: theme.text }}>{b.studentName}</p><p style={{ margin: "0 0 2px", fontSize: 13, color: theme.textSub }}>{b.subject}</p><p style={{ margin: 0, fontSize: 12, color: theme.textMuted }}>📅 {b.date} at {b.time}</p></div>
+                </div>
+                <p style={{ fontFamily: F.mono, fontSize: 20, fontWeight: 700, color: theme.accent, margin: 0 }}>P{b.amount}</p>
+              </div>
+              {b.note && <div style={{ background: theme.accentLight, borderRadius: 10, padding: "10px 14px", marginBottom: 14 }}><p style={{ margin: 0, fontSize: 13, color: theme.accent }}>📝 {b.note}</p></div>}
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => confirm(b.id)} style={{ background: theme.gradient, color: "#0D0F1A", border: "none", borderRadius: 10, padding: "9px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: F.body }}>✓ Accept</button>
+                <button onClick={() => decline(b.id)} style={{ background: "rgba(255,107,107,0.12)", color: theme.danger, border: "none", borderRadius: 10, padding: "9px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: F.body }}>✕ Decline</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {others.length > 0 && (
+        <div>
+          <p style={{ fontSize: 12, fontWeight: 600, color: theme.textMuted, textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 12px" }}>All Bookings</p>
+          {others.map(b => (
+            <div key={b.id} style={{ background: theme.card, borderRadius: 14, padding: "16px 20px", border: `1px solid ${theme.border}`, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                <Avatar initials={b.studentName.split(" ").map(w=>w[0]).join("").slice(0,2)} size={36} gradient={theme.gradient} />
+                <div><p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 600, color: theme.text }}>{b.studentName}</p><p style={{ margin: 0, fontSize: 12, color: theme.textSub }}>{b.subject} · {b.date}</p></div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <StatusBadge status={b.status} />
+                {b.status === "confirmed" && <button onClick={() => complete(b.id)} style={{ background: "rgba(67,217,173,0.15)", color: theme.success, border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: F.body }}>Mark Complete</button>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {bookings.length === 0 && <EmptyState icon="📥" text="No student requests yet" />}
+    </div>
+  );
+}
+
+function TutorSchedule({ profile, bookings, setTutors, theme }: { profile: TutorProfile; bookings: Booking[]; setTutors: React.Dispatch<React.SetStateAction<TutorProfile[]>>; theme: AnyTheme }) {
+  const toggleAvail = () => setTutors(p => p.map(t => t.id === profile.id ? { ...t, available: !t.available } : t));
+  const upcoming = bookings.filter(b => b.status === "confirmed" || b.status === "pending");
+  return (
+    <div>
+      <PageHeader title="Schedule Management" sub="Manage your availability and upcoming sessions" theme={th} tutor />
+      <div style={{ background: theme.card, borderRadius: 16, padding: 24, border: `1px solid ${theme.border}`, marginBottom: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h3 style={{ fontFamily: F.display, fontSize: 18, color: theme.text, margin: "0 0 6px" }}>Availability Status</h3>
+            <p style={{ margin: 0, fontSize: 14, color: theme.textSub }}>Toggle to let students know if you're accepting bookings</p>
+          </div>
+          <div onClick={toggleAvail} style={{ width: 56, height: 28, borderRadius: 14, background: profile.available ? theme.success : theme.border, cursor: "pointer", position: "relative", transition: "background 0.2s" }}>
+            <div style={{ position: "absolute", top: 3, left: profile.available ? 30 : 3, width: 22, height: 22, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
+          </div>
+        </div>
+        <div style={{ marginTop: 16, background: profile.available ? "rgba(67,217,173,0.1)" : "rgba(255,107,107,0.1)", borderRadius: 10, padding: "12px 16px" }}>
+          <p style={{ margin: 0, color: profile.available ? theme.success : theme.danger, fontSize: 14, fontWeight: 600 }}>{profile.available ? "✅ You are available — students can book sessions" : "❌ You are unavailable — new bookings are paused"}</p>
+        </div>
+      </div>
+      <div style={{ background: theme.card, borderRadius: 16, padding: 24, border: `1px solid ${theme.border}` }}>
+        <h3 style={{ fontFamily: F.display, fontSize: 18, color: theme.text, margin: "0 0 20px" }}>Upcoming Sessions ({upcoming.length})</h3>
+        {upcoming.length === 0 ? <EmptyState icon="📅" text="No upcoming sessions" /> : upcoming.map(b => (
+          <div key={b.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0", borderBottom: `1px solid ${theme.border}` }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: theme.accentLight, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>📅</div>
+              <div><p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 600, color: theme.text }}>{b.studentName}</p><p style={{ margin: 0, fontSize: 12, color: theme.textSub }}>{b.subject}</p></div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 600, color: theme.accent }}>{b.date}</p>
+              <p style={{ margin: 0, fontSize: 12, color: theme.textMuted }}>{b.time}</p>
+            </div>
+            <StatusBadge status={b.status} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TutorMessages({ user, messages, setMessages, bookings, theme }: { user: User; messages: Message[]; setMessages: React.Dispatch<React.SetStateAction<Message[]>>; bookings: Booking[]; theme: AnyTheme }) {
+  const [activeConv, setActiveConv] = useState<number | null>(null);
+  const [newMsg, setNewMsg] = useState("");
+  const endRef = useRef<HTMLDivElement>(null);
+
+  // Find unique students who booked
+  const studentIds = [...new Set(bookings.map(b => b.studentId))];
+  const convMsgs = activeConv ? messages.filter(m => (m.senderId === user.id && m.receiverId === activeConv) || (m.senderId === activeConv && m.receiverId === user.id)) : [];
+
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [convMsgs.length]);
+
+  const sendMsg = () => {
+    if (!newMsg.trim() || !activeConv) return;
+    const booking = bookings.find(b => b.studentId === activeConv);
+    setMessages(p => [...p, { id: Date.now(), senderId: user.id, receiverId: activeConv, senderName: user.name, text: newMsg, timestamp: new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }), read: false }]);
+    setNewMsg("");
+  };
+
+  const getStudentName = (id: number) => bookings.find(b => b.studentId === id)?.studentName || "Student";
+
+  return (
+    <div>
+      <PageHeader title="Messages" sub="Chat with your students" theme={th} tutor />
+      <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 20, height: 600 }}>
+        <div style={{ background: theme.card, borderRadius: 16, border: `1px solid ${theme.border}`, overflow: "hidden" }}>
+          <div style={{ padding: "14px 16px", borderBottom: `1px solid ${theme.border}` }}><p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: theme.textMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>Students</p></div>
+          <div style={{ padding: 10 }}>
+            {studentIds.length === 0 ? <EmptyState icon="💬" text="No student conversations" /> : studentIds.map(id => (
+              <div key={id} onClick={() => { setActiveConv(id); setMessages(p => p.map(m => m.receiverId === user.id && m.senderId === id ? { ...m, read: true } : m)); }}
+                style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, cursor: "pointer", background: activeConv === id ? theme.accentLight : "transparent", marginBottom: 4 }}>
+                <Avatar initials={getStudentName(id).split(" ").map(w=>w[0]).join("").slice(0,2)} size={34} gradient={theme.gradient} />
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: theme.text }}>{getStudentName(id)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ background: theme.card, borderRadius: 16, border: `1px solid ${theme.border}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          {!activeConv ? (
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}><EmptyState icon="💬" text="Select a student to chat" /></div>
+          ) : (
+            <>
+              <div style={{ padding: "14px 20px", borderBottom: `1px solid ${theme.border}` }}>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: theme.text }}>{getStudentName(activeConv)}</p>
+              </div>
+              <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+                {convMsgs.map(m => {
+                  const mine = m.senderId === user.id;
+                  return (
+                    <div key={m.id} style={{ display: "flex", justifyContent: mine ? "flex-end" : "flex-start" }}>
+                      <div style={{ background: mine ? theme.gradient : theme.bg, color: mine ? "#0D0F1A" : theme.text, borderRadius: mine ? "16px 16px 4px 16px" : "16px 16px 16px 4px", padding: "10px 16px", maxWidth: "70%" }}>
+                        <p style={{ margin: "0 0 4px", fontSize: 14 }}>{m.text}</p>
+                        <p style={{ margin: 0, fontSize: 11, opacity: 0.6 }}>{m.timestamp}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div ref={endRef} />
+              </div>
+              <div style={{ padding: "12px 16px", borderTop: `1px solid ${theme.border}`, display: "flex", gap: 10 }}>
+                <input value={newMsg} onChange={e => setNewMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendMsg()} placeholder="Type a message..." style={{ flex: 1, padding: "10px 14px", borderRadius: 10, border: `1px solid ${theme.border}`, background: theme.bg, color: theme.text, fontSize: 14, fontFamily: F.body, outline: "none" }} />
+                <button onClick={sendMsg} style={{ background: theme.gradient, color: "#0D0F1A", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, cursor: "pointer", fontFamily: F.body }}>Send</button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TutorEarnings({ profile, bookings, payments, theme }: { profile: TutorProfile; bookings: Booking[]; payments: Payment[]; theme: AnyTheme }) {
+  const completed = bookings.filter(b => b.status === "completed");
+  const total = completed.reduce((s, b) => s + b.amount, 0);
+  const pending = bookings.filter(b => b.status === "confirmed").reduce((s, b) => s + b.amount, 0);
+  return (
+    <div>
+      <PageHeader title="Earnings" sub="Track your income from tutoring sessions" theme={th} tutor />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 14, marginBottom: 28 }}>
+        {[
+          { label: "Total Earned", value: `P${total}`, icon: "💰", color: theme.accent },
+          { label: "Pending Payout", value: `P${pending}`, icon: "⏳", color: theme.warning },
+          { label: "Sessions Done", value: completed.length, icon: "✅", color: theme.success },
+          { label: "Hourly Rate", value: `P${profile.rate}/hr`, icon: "💵", color: "#6366F1" },
+        ].map(s => (
+          <div key={s.label} style={{ background: theme.card, borderRadius: 16, padding: "20px", border: `1px solid ${theme.border}` }}>
+            <p style={{ margin: "0 0 8px", fontSize: 11, color: theme.textMuted, fontWeight: 600, textTransform: "uppercase" }}>{s.label}</p>
+            <p style={{ margin: 0, fontSize: 28, fontWeight: 700, color: theme.text, fontFamily: F.mono }}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+      <div style={{ background: theme.card, borderRadius: 16, border: `1px solid ${theme.border}`, overflow: "hidden" }}>
+        <div style={{ padding: "16px 20px", borderBottom: `1px solid ${theme.border}` }}><h3 style={{ margin: 0, fontFamily: F.display, fontSize: 18, color: theme.text }}>Earnings History</h3></div>
+        {completed.length === 0 ? <EmptyState icon="💰" text="No completed sessions yet" /> : completed.map(b => (
+          <div key={b.id} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "14px 20px", borderBottom: `1px solid ${theme.border}`, alignItems: "center" }}>
+            <span style={{ fontSize: 13, color: theme.text, fontWeight: 500 }}>{b.studentName}</span>
+            <span style={{ fontSize: 12, color: theme.textSub }}>{b.subject} · {b.date}</span>
+            <span style={{ fontSize: 16, color: theme.accent, fontFamily: F.mono, fontWeight: 700 }}>+P{b.amount}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TutorReviewsTab({ reviews, theme }: { reviews: Review[]; theme: AnyTheme }) {
+  const avg = reviews.length ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1) : "—";
+  return (
+    <div>
+      <PageHeader title="My Reviews" sub={`${reviews.length} reviews from students`} theme={th} tutor />
+      {reviews.length > 0 && (
+        <div style={{ background: theme.card, borderRadius: 16, padding: 24, border: `1px solid ${theme.border}`, marginBottom: 24, display: "flex", alignItems: "center", gap: 20 }}>
+          <div style={{ textAlign: "center" }}>
+            <p style={{ fontFamily: F.display, fontSize: 52, fontWeight: 900, color: theme.accent, margin: "0 0 4px" }}>{avg}</p>
+            <StarRow rating={parseFloat(avg) || 0} size={18} />
+            <p style={{ color: theme.textSub, fontSize: 13, margin: "4px 0 0" }}>{reviews.length} reviews</p>
+          </div>
+          <div style={{ flex: 1 }}>
+            {[5,4,3,2,1].map(n => {
+              const count = reviews.filter(r => r.rating === n).length;
+              const pct = reviews.length ? (count / reviews.length) * 100 : 0;
+              return (
+                <div key={n} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                  <span style={{ color: "#F59E0B", fontSize: 13, width: 20 }}>{n}★</span>
+                  <div style={{ flex: 1, height: 8, background: theme.border, borderRadius: 4, overflow: "hidden" }}>
+                    <div style={{ width: `${pct}%`, height: "100%", background: theme.gradient, borderRadius: 4, transition: "width 0.3s" }} />
+                  </div>
+                  <span style={{ color: theme.textMuted, fontSize: 12, width: 20 }}>{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {reviews.length === 0 ? <EmptyState icon="⭐" text="No reviews yet — complete sessions to get reviews" /> : reviews.map(r => (
+        <div key={r.id} style={{ background: theme.card, borderRadius: 14, padding: "16px 20px", border: `1px solid ${theme.border}`, marginBottom: 10 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Avatar initials={r.studentName.split(" ").map(w=>w[0]).join("").slice(0,2)} size={32} gradient={theme.gradient} />
+              <span style={{ fontWeight: 600, fontSize: 14, color: theme.text }}>{r.studentName}</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}><StarRow rating={r.rating} /><span style={{ color: theme.textMuted, fontSize: 12 }}>{r.date}</span></div>
+          </div>
+          <p style={{ margin: 0, fontSize: 13, color: theme.textSub, lineHeight: 1.6 }}>{r.comment}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TutorProfileTab({ profile, setTutors, theme }: { profile: TutorProfile; setTutors: React.Dispatch<React.SetStateAction<TutorProfile[]>>; theme: AnyTheme }) {
+  const [bio, setBio] = useState(profile.bio);
+  const [rate, setRate] = useState(String(profile.rate));
+  const [subjects, setSubjects] = useState(profile.subjects.join(", "));
+  const [qualifications, setQualifications] = useState(profile.qualifications.join(", "));
+  const [saved, setSaved] = useState(false);
+  const save = () => {
+    setTutors(p => p.map(t => t.id === profile.id ? { ...t, bio, rate: parseFloat(rate) || t.rate, subjects: subjects.split(",").map(s => s.trim()).filter(Boolean), qualifications: qualifications.split(",").map(q => q.trim()).filter(Boolean) } : t));
+    setSaved(true); setTimeout(() => setSaved(false), 2000);
+  };
+  const inp: React.CSSProperties = { width: "100%", padding: "11px 14px", borderRadius: 10, border: `1px solid ${theme.border}`, background: theme.bg, color: theme.text, fontSize: 14, fontFamily: F.body, outline: "none", boxSizing: "border-box" };
+  const lbl: React.CSSProperties = { display: "block", fontSize: 11, fontWeight: 600, color: theme.textSub, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.07em" };
+  return (
+    <div>
+      <PageHeader title="My Profile" sub="Update your tutor profile" theme={th} tutor />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+        <div style={{ background: theme.card, borderRadius: 16, padding: 24, border: `1px solid ${theme.border}`, gridColumn: "1/-1" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 20 }}>
+            <Avatar initials={profile.avatar} size={72} gradient={theme.gradient} />
+            <div>
+              <h2 style={{ fontFamily: F.display, fontSize: 24, fontWeight: 900, color: theme.text, margin: "0 0 4px" }}>{profile.name}</h2>
+              <p style={{ color: theme.textSub, margin: "0 0 8px", fontSize: 14 }}>🎓 {profile.university}</p>
+              <Badge label={profile.verified === "approved" ? "✓ Verified Tutor" : profile.verified === "pending" ? "⏳ Pending Verification" : "✕ Not Verified"} color={profile.verified === "approved" ? theme.success : profile.verified === "pending" ? theme.warning : theme.danger} bg={profile.verified === "approved" ? "rgba(67,217,173,0.12)" : profile.verified === "pending" ? theme.accentLight : "rgba(255,107,107,0.12)"} />
+            </div>
+          </div>
+        </div>
+        <div style={{ background: theme.card, borderRadius: 16, padding: 24, border: `1px solid ${theme.border}` }}>
+          <label style={lbl}>Bio</label>
+          <textarea value={bio} onChange={e => setBio(e.target.value)} rows={4} style={{ ...inp, resize: "vertical" }} />
+        </div>
+        <div style={{ background: theme.card, borderRadius: 16, padding: 24, border: `1px solid ${theme.border}` }}>
+          <div style={{ marginBottom: 14 }}><label style={lbl}>Hourly Rate (BWP)</label><input value={rate} onChange={e => setRate(e.target.value)} style={inp} /></div>
+          <div><label style={lbl}>Subjects (comma separated)</label><input value={subjects} onChange={e => setSubjects(e.target.value)} style={inp} /></div>
+        </div>
+        <div style={{ background: theme.card, borderRadius: 16, padding: 24, border: `1px solid ${theme.border}`, gridColumn: "1/-1" }}>
+          <label style={lbl}>Qualifications (comma separated)</label>
+          <input value={qualifications} onChange={e => setQualifications(e.target.value)} style={inp} />
+        </div>
+      </div>
+      <div style={{ marginTop: 20, display: "flex", gap: 12, alignItems: "center" }}>
+        <button onClick={save} style={{ background: theme.gradient, color: "#0D0F1A", border: "none", borderRadius: 12, padding: "12px 28px", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: F.body }}>Save Changes</button>
+        {saved && <span style={{ color: theme.success, fontSize: 14, fontWeight: 600 }}>✓ Saved successfully!</span>}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ADMIN DASHBOARD
+// ═══════════════════════════════════════════════════════════════════════════════
+function AdminDashboard({ user, ...shared }: { user: User } & SharedProps) {
+  const [tab, setTab] = useState("overview");
+  const th = T.admin;
+  const { tutors, setTutors, students, setStudents, bookings, reviews, setReviews, payments } = shared;
+
+  const pendingVerif = tutors.filter(t => t.verified === "pending").length;
+
+  const navItems = [
+    { id: "overview",      label: "Overview",         icon: "◈" },
+    { id: "students",      label: "Students",          icon: "🎓" },
+    { id: "tutors",        label: "Tutors",            icon: "👨‍🏫" },
+    { id: "verification",  label: "Verification",      icon: "✅", badge: pendingVerif },
+    { id: "payments",      label: "Payments",          icon: "💳" },
+    { id: "reviews",       label: "Reviews",           icon: "⭐" },
+    { id: "maintenance",   label: "Maintenance",       icon: "⚙️" },
+  ];
+
+  return (
+    <Shell navItems={navItems} activeTab={tab} setActiveTab={setTab} user={user} theme={th}>
+      {tab === "overview"     && <AdminOverview   tutors={tutors} students={students} bookings={bookings} reviews={reviews} payments={payments} theme={th} />}
+      {tab === "students"     && <AdminStudents   students={students} setStudents={setStudents} theme={th} />}
+      {tab === "tutors"       && <AdminTutors     tutors={tutors} setTutors={setTutors} theme={th} />}
+      {tab === "verification" && <AdminVerification tutors={tutors} setTutors={setTutors} theme={th} />}
+      {tab === "payments"     && <AdminPayments   payments={payments} bookings={bookings} theme={th} />}
+      {tab === "reviews"      && <AdminReviews    reviews={reviews} setReviews={setReviews} theme={th} />}
+      {tab === "maintenance"  && <AdminMaintenance theme={th} />}
+    </Shell>
+  );
+}
+
+function AdminOverview({ tutors, students, bookings, reviews, payments, theme }: { tutors: TutorProfile[]; students: StudentProfile[]; bookings: Booking[]; reviews: Review[]; payments: Payment[]; theme: AnyTheme }) {
+  const totalRevenue = payments.filter(p => p.status === "completed").reduce((s, p) => s + p.amount, 0);
+  const avgRating = reviews.length ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1) : "—";
+  const stats = [
+    { label: "Total Students",   value: students.length,  icon: "🎓", color: theme.accent },
+    { label: "Total Tutors",     value: tutors.length,    icon: "👨‍🏫", color: "#10B981" },
+    { label: "Total Bookings",   value: bookings.length,  icon: "📅", color: "#F59E0B" },
+    { label: "Platform Revenue", value: `P${totalRevenue}`, icon: "💰", color: "#8B5CF6" },
+    { label: "Total Reviews",    value: reviews.length,   icon: "⭐", color: "#F59E0B" },
+    { label: "Avg. Rating",      value: avgRating,        icon: "📊", color: theme.accent },
+  ];
+  return (
+    <div>
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{ fontFamily: F.display, fontSize: 32, fontWeight: 900, color: theme.text, margin: "0 0 6px", letterSpacing: "-0.02em" }}>Admin Overview</h1>
+        <p style={{ color: theme.textSub, margin: 0 }}>Welcome back, Mark — platform status at a glance.</p>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 16, marginBottom: 32 }}>
+        {stats.map(s => (
+          <div key={s.label} style={{ background: theme.card, borderRadius: 16, padding: "22px 20px", border: `1px solid ${theme.border}`, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <p style={{ margin: "0 0 8px", fontSize: 11, color: theme.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</p>
+                <p style={{ margin: 0, fontSize: 30, fontWeight: 700, color: theme.text, fontFamily: F.mono }}>{s.value}</p>
+              </div>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: s.color + "18", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{s.icon}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+        <div style={{ background: theme.card, borderRadius: 16, padding: 24, border: `1px solid ${theme.border}` }}>
+          <h3 style={{ fontFamily: F.display, fontSize: 18, color: theme.text, margin: "0 0 16px" }}>Recent Bookings</h3>
+          {bookings.slice(-5).reverse().map(b => (
+            <div key={b.id} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${theme.border}` }}>
+              <div><p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 600, color: theme.text }}>{b.studentName} → {b.tutorName}</p><p style={{ margin: 0, fontSize: 12, color: theme.textSub }}>{b.subject} · {b.date}</p></div>
+              <StatusBadge status={b.status} />
+            </div>
+          ))}
+          {bookings.length === 0 && <EmptyState icon="📅" text="No bookings yet" />}
+        </div>
+        <div style={{ background: theme.card, borderRadius: 16, padding: 24, border: `1px solid ${theme.border}` }}>
+          <h3 style={{ fontFamily: F.display, fontSize: 18, color: theme.text, margin: "0 0 16px" }}>Platform Health</h3>
+          {[["API Server","Operational",true],["Database","Operational",true],["Payment Gateway","Operational",true],["File Storage","Operational",true],["Email Service","Operational",true]].map(([name, status, ok]) => (
+            <div key={String(name)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${theme.border}` }}>
+              <span style={{ fontSize: 13, color: theme.textSub }}>{name}</span>
+              <Badge label={ok ? "● Operational" : "● Degraded"} color={ok ? theme.success : theme.danger} bg={ok ? "#D1FAE5" : "#FEE2E2"} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdminStudents({ students, setStudents, theme }: { students: StudentProfile[]; setStudents: React.Dispatch<React.SetStateAction<StudentProfile[]>>; theme: AnyTheme }) {
+  const [search, setSearch] = useState("");
+  const filtered = students.filter(s => !search || s.name.toLowerCase().includes(search.toLowerCase()));
+  const remove = (id: number) => { if (window.confirm("Delete this student?")) setStudents(p => p.filter(s => s.id !== id)); };
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+        <PageHeader title="Student Accounts" sub={`${students.length} registered students`} theme={th} inline />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 10, padding: "8px 14px" }}>
+          <span>🔍</span>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search students..." style={{ border: "none", outline: "none", fontSize: 13, fontFamily: F.body, color: theme.text, background: "transparent" }} />
+        </div>
+      </div>
+      <div style={{ background: theme.card, borderRadius: 16, border: `1px solid ${theme.border}`, overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.5fr 2fr 1.5fr 1fr 1fr 80px", padding: "12px 20px", borderBottom: `1px solid ${theme.border}`, background: theme.accentLight }}>
+          {["Name","University","Course","Year","Plan",""].map(h => <span key={h} style={{ fontSize: 11, fontWeight: 600, color: theme.textMuted, textTransform: "uppercase", letterSpacing: "0.07em" }}>{h}</span>)}
+        </div>
+        {filtered.length === 0 ? <EmptyState icon="🎓" text="No students registered yet" /> : filtered.map(s => (
+          <div key={s.id} style={{ display: "grid", gridTemplateColumns: "1.5fr 2fr 1.5fr 1fr 1fr 80px", padding: "13px 20px", borderBottom: `1px solid ${theme.border}`, alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Avatar initials={s.avatar} size={30} gradient={theme.gradient} /><span style={{ fontSize: 13, fontWeight: 600, color: theme.text }}>{s.name}</span></div>
+            <span style={{ fontSize: 12, color: theme.textSub }}>{s.university || "—"}</span>
+            <span style={{ fontSize: 12, color: theme.textSub }}>{s.course || "—"}</span>
+            <span style={{ fontSize: 12, color: theme.textSub }}>{s.year}</span>
+            <Badge label={s.plan} color={s.plan === "premium" ? "#D97706" : theme.accent} bg={s.plan === "premium" ? "#FFF3CD" : theme.accentLight} />
+            <button onClick={() => remove(s.id)} style={{ background: "#FEE2E2", color: theme.danger, border: "none", borderRadius: 8, padding: "5px 10px", fontSize: 11, cursor: "pointer", fontFamily: F.body }}>Delete</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AdminTutors({ tutors, setTutors, theme }: { tutors: TutorProfile[]; setTutors: React.Dispatch<React.SetStateAction<TutorProfile[]>>; theme: AnyTheme }) {
+  const [search, setSearch] = useState("");
+  const filtered = tutors.filter(t => !search || t.name.toLowerCase().includes(search.toLowerCase()));
+  const remove = (id: number) => { if (window.confirm("Delete this tutor?")) setTutors(p => p.filter(t => t.id !== id)); };
+  const suspend = (id: number) => setTutors(p => p.map(t => t.id === id ? { ...t, available: !t.available } : t));
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+        <PageHeader title="Tutor Accounts" sub={`${tutors.length} registered tutors`} theme={th} inline />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 10, padding: "8px 14px" }}>
+          <span>🔍</span>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tutors..." style={{ border: "none", outline: "none", fontSize: 13, fontFamily: F.body, color: theme.text, background: "transparent" }} />
+        </div>
+      </div>
+      <div style={{ background: theme.card, borderRadius: 16, border: `1px solid ${theme.border}`, overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1.5fr 1fr 1fr 1fr 0.8fr 120px", padding: "12px 20px", borderBottom: `1px solid ${theme.border}`, background: theme.accentLight }}>
+          {["Name","University","Rate","Rating","Status","Verified",""].map(h => <span key={h} style={{ fontSize: 11, fontWeight: 600, color: theme.textMuted, textTransform: "uppercase", letterSpacing: "0.07em" }}>{h}</span>)}
+        </div>
+        {filtered.length === 0 ? <EmptyState icon="👨‍🏫" text="No tutors registered yet" /> : filtered.map(t => (
+          <div key={t.id} style={{ display: "grid", gridTemplateColumns: "1.5fr 1.5fr 1fr 1fr 1fr 0.8fr 120px", padding: "13px 20px", borderBottom: `1px solid ${theme.border}`, alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Avatar initials={t.avatar} size={30} gradient="linear-gradient(135deg,#F4A228,#E07B00)" /><span style={{ fontSize: 13, fontWeight: 600, color: theme.text }}>{t.name}</span></div>
+            <span style={{ fontSize: 12, color: theme.textSub }}>{t.university || "—"}</span>
+            <span style={{ fontSize: 13, color: theme.accent, fontFamily: F.mono, fontWeight: 700 }}>P{t.rate}/hr</span>
+            <StarRow rating={t.rating} />
+            <Badge label={t.available ? "Available" : "Busy"} color={t.available ? theme.success : theme.danger} bg={t.available ? "#D1FAE5" : "#FEE2E2"} />
+            <Badge label={t.verified} color={t.verified === "approved" ? theme.success : t.verified === "pending" ? theme.warning : theme.danger} bg={t.verified === "approved" ? "#D1FAE5" : t.verified === "pending" ? "#FFF3CD" : "#FEE2E2"} />
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={() => suspend(t.id)} style={{ background: theme.accentLight, color: theme.accent, border: "none", borderRadius: 6, padding: "4px 8px", fontSize: 10, cursor: "pointer", fontFamily: F.body }}>Toggle</button>
+              <button onClick={() => remove(t.id)} style={{ background: "#FEE2E2", color: theme.danger, border: "none", borderRadius: 6, padding: "4px 8px", fontSize: 10, cursor: "pointer", fontFamily: F.body }}>Delete</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AdminVerification({ tutors, setTutors, theme }: { tutors: TutorProfile[]; setTutors: React.Dispatch<React.SetStateAction<TutorProfile[]>>; theme: AnyTheme }) {
+  const approve = (id: number) => setTutors(p => p.map(t => t.id === id ? { ...t, verified: "approved" } : t));
+  const reject  = (id: number) => setTutors(p => p.map(t => t.id === id ? { ...t, verified: "rejected" } : t));
+  const pending  = tutors.filter(t => t.verified === "pending");
+  const reviewed = tutors.filter(t => t.verified !== "pending");
+  return (
+    <div>
+      <PageHeader title="Tutor Verification" sub="Review and approve tutor applications" theme={th} />
+      <p style={{ fontSize: 12, fontWeight: 600, color: theme.textMuted, textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 14px" }}>Pending ({pending.length})</p>
+      {pending.length === 0 ? <div style={{ background: theme.card, borderRadius: 16, border: `1px solid ${theme.border}`, marginBottom: 24 }}><EmptyState icon="✅" text="All caught up! No pending verifications" /></div> : (
+        <div style={{ marginBottom: 28 }}>
+          {pending.map(t => (
+            <div key={t.id} style={{ background: theme.card, borderRadius: 16, padding: 22, border: `1.5px solid ${theme.warning}55`, marginBottom: 12 }}>
+              <div style={{ display: "flex", gap: 16, alignItems: "flex-start", marginBottom: 14 }}>
+                <Avatar initials={t.avatar} size={52} gradient="linear-gradient(135deg,#F4A228,#E07B00)" />
+                <div style={{ flex: 1 }}>
+                  <h3 style={{ fontFamily: F.display, fontSize: 18, color: theme.text, margin: "0 0 4px" }}>{t.name}</h3>
+                  <p style={{ color: theme.textSub, fontSize: 13, margin: "0 0 8px" }}>🎓 {t.university} · P{t.rate}/hr</p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                    {t.subjects.map(s => <span key={s} style={{ background: "#EFF6FF", color: theme.accent, fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>{s}</span>)}
+                  </div>
+                  {t.qualifications.length > 0 && <p style={{ color: theme.textSub, fontSize: 13, margin: "0 0 6px" }}>🎓 {t.qualifications.join(" · ")}</p>}
+                  {t.bio && <p style={{ color: theme.textSub, fontSize: 13, margin: 0, lineHeight: 1.5 }}>{t.bio}</p>}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => approve(t.id)} style={{ background: "#D1FAE5", color: theme.success, border: "none", borderRadius: 10, padding: "9px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: F.body }}>✓ Approve</button>
+                <button onClick={() => reject(t.id)}  style={{ background: "#FEE2E2", color: theme.danger,  border: "none", borderRadius: 10, padding: "9px 22px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: F.body }}>✕ Reject</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {reviewed.length > 0 && (
+        <>
+          <p style={{ fontSize: 12, fontWeight: 600, color: theme.textMuted, textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 14px" }}>Reviewed ({reviewed.length})</p>
+          {reviewed.map(t => (
+            <div key={t.id} style={{ background: theme.card, borderRadius: 14, padding: "16px 20px", border: `1px solid ${theme.border}`, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                <Avatar initials={t.avatar} size={36} gradient="linear-gradient(135deg,#F4A228,#E07B00)" />
+                <div><p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 600, color: theme.text }}>{t.name}</p><p style={{ margin: 0, fontSize: 12, color: theme.textSub }}>{t.university}</p></div>
+              </div>
+              <Badge label={t.verified} color={t.verified === "approved" ? theme.success : theme.danger} bg={t.verified === "approved" ? "#D1FAE5" : "#FEE2E2"} />
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
+function AdminPayments({ payments, bookings, theme }: { payments: Payment[]; bookings: Booking[]; theme: AnyTheme }) {
+  const total = payments.filter(p => p.status === "completed").reduce((s, p) => s + p.amount, 0);
+  const pending = payments.filter(p => p.status === "pending").reduce((s, p) => s + p.amount, 0);
+  return (
+    <div>
+      <PageHeader title="Payment Monitoring" sub="Track all transactions and revenue" theme={th} />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 14, marginBottom: 24 }}>
+        {[
+          { label: "Total Revenue",  value: `P${total}`,   icon: "💰", color: theme.success },
+          { label: "Pending",        value: `P${pending}`, icon: "⏳", color: theme.warning },
+          { label: "Transactions",   value: payments.length, icon: "📋", color: theme.accent },
+          { label: "Total Bookings", value: bookings.length, icon: "📅", color: "#8B5CF6" },
+        ].map(s => (
+          <div key={s.label} style={{ background: theme.card, borderRadius: 14, padding: "20px", border: `1px solid ${theme.border}` }}>
+            <p style={{ margin: "0 0 8px", fontSize: 11, color: theme.textMuted, fontWeight: 600, textTransform: "uppercase" }}>{s.label}</p>
+            <p style={{ margin: 0, fontSize: 28, fontWeight: 700, color: theme.text, fontFamily: F.mono }}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+      <div style={{ background: theme.card, borderRadius: 16, border: `1px solid ${theme.border}`, overflow: "hidden" }}>
+        <div style={{ padding: "16px 20px", borderBottom: `1px solid ${theme.border}` }}><h3 style={{ margin: 0, fontFamily: F.display, fontSize: 18, color: theme.text }}>All Transactions</h3></div>
+        <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1.5fr 1fr 1fr 1fr", padding: "11px 20px", borderBottom: `1px solid ${theme.border}`, background: theme.accentLight }}>
+          {["Student","Tutor","Amount","Date","Status"].map(h => <span key={h} style={{ fontSize: 11, fontWeight: 600, color: theme.textMuted, textTransform: "uppercase" }}>{h}</span>)}
+        </div>
+        {payments.length === 0 ? <EmptyState icon="💳" text="No transactions yet" /> : payments.map(p => (
+          <div key={p.id} style={{ display: "grid", gridTemplateColumns: "1.5fr 1.5fr 1fr 1fr 1fr", padding: "13px 20px", borderBottom: `1px solid ${theme.border}`, alignItems: "center" }}>
+            <span style={{ fontSize: 13, color: theme.text }}>{p.studentName}</span>
+            <span style={{ fontSize: 13, color: theme.text }}>{p.tutorName}</span>
+            <span style={{ fontSize: 14, color: theme.accent, fontFamily: F.mono, fontWeight: 700 }}>P{p.amount}</span>
+            <span style={{ fontSize: 12, color: theme.textSub }}>{p.date}</span>
+            <Badge label={p.status} color={p.status === "completed" ? theme.success : p.status === "pending" ? theme.warning : theme.danger} bg={p.status === "completed" ? "#D1FAE5" : p.status === "pending" ? "#FFF3CD" : "#FEE2E2"} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AdminReviews({ reviews, setReviews, theme }: { reviews: Review[]; setReviews: React.Dispatch<React.SetStateAction<Review[]>>; theme: AnyTheme }) {
+  const [filter, setFilter] = useState("all");
+  const toggleFlag = (id: number) => setReviews(p => p.map(r => r.id === id ? { ...r, flagged: !r.flagged } : r));
+  const toggleHide = (id: number) => setReviews(p => p.map(r => r.id === id ? { ...r, hidden: !r.hidden } : r));
+  const del = (id: number) => { if (window.confirm("Delete this review?")) setReviews(p => p.filter(r => r.id !== id)); };
+  const visible = reviews.filter(r => filter === "all" ? true : filter === "flagged" ? r.flagged : r.hidden);
+  const avg = reviews.length ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1) : "—";
+  return (
+    <div>
+      <PageHeader title="Reviews & Ratings" sub="Monitor and moderate all platform reviews" theme={th} />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 14, marginBottom: 24 }}>
+        {[
+          { label: "Avg Rating", value: avg, icon: "⭐" },
+          { label: "Total Reviews", value: reviews.length, icon: "💬" },
+          { label: "Flagged", value: reviews.filter(r => r.flagged).length, icon: "🚩" },
+          { label: "Hidden", value: reviews.filter(r => r.hidden).length, icon: "🙈" },
+        ].map(s => (
+          <div key={s.label} style={{ background: theme.card, borderRadius: 14, padding: "18px", border: `1px solid ${theme.border}` }}>
+            <p style={{ margin: "0 0 6px", fontSize: 11, color: theme.textMuted, fontWeight: 600, textTransform: "uppercase" }}>{s.label}</p>
+            <p style={{ margin: 0, fontSize: 26, fontWeight: 700, color: theme.text, fontFamily: F.mono }}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+      <div style={{ background: theme.card, borderRadius: 16, border: `1px solid ${theme.border}`, overflow: "hidden" }}>
+        <div style={{ padding: "16px 20px", borderBottom: `1px solid ${theme.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h3 style={{ margin: 0, fontFamily: F.display, fontSize: 18, color: theme.text }}>All Reviews</h3>
+          <div style={{ display: "flex", gap: 6 }}>
+            {["all","flagged","hidden"].map(f => <button key={f} onClick={() => setFilter(f)} style={{ padding: "6px 14px", borderRadius: 20, border: "none", background: filter === f ? theme.accentLight : "transparent", color: filter === f ? theme.accent : theme.textMuted, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: F.body, textTransform: "capitalize" }}>{f}</button>)}
+          </div>
+        </div>
+        {visible.length === 0 ? <EmptyState icon="⭐" text="No reviews found" /> : visible.map(r => (
+          <div key={r.id} style={{ padding: "16px 20px", borderBottom: `1px solid ${theme.border}`, opacity: r.hidden ? 0.55 : 1 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: theme.text }}>{r.studentName}</span>
+                  <span style={{ color: theme.textMuted, fontSize: 13 }}>→</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: theme.accent }}>{r.tutorName}</span>
+                  <StarRow rating={r.rating} />
+                  <span style={{ color: theme.textMuted, fontSize: 12 }}>{r.date}</span>
+                  {r.flagged && <Badge label="Flagged" color={theme.danger} bg="#FEE2E2" />}
+                  {r.hidden  && <Badge label="Hidden"  color={theme.textMuted} bg={theme.border} />}
+                </div>
+                <p style={{ margin: 0, fontSize: 13, color: theme.textSub, lineHeight: 1.5 }}>{r.comment}</p>
+              </div>
+              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                <button onClick={() => toggleFlag(r.id)} style={{ background: r.flagged ? "#FEE2E2" : theme.accentLight, color: r.flagged ? theme.danger : theme.accent, border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 11, cursor: "pointer", fontFamily: F.body }}>{r.flagged ? "Unflag" : "Flag"}</button>
+                <button onClick={() => toggleHide(r.id)} style={{ background: theme.border, color: theme.textSub, border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 11, cursor: "pointer", fontFamily: F.body }}>{r.hidden ? "Restore" : "Hide"}</button>
+                <button onClick={() => del(r.id)} style={{ background: "#FEE2E2", color: theme.danger, border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 11, cursor: "pointer", fontFamily: F.body }}>Delete</button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AdminMaintenance({ theme }: { theme: AnyTheme }) {
+  const [settings, setSettings] = useState({ registration: true, payments: true, tutorMarket: true, emails: true, autoApprove: false, maintenance: false });
+  const [msg, setMsg] = useState("");
+  const action = (label: string) => { setMsg(`${label}...`); setTimeout(() => { setMsg(`${label} ✓`); setTimeout(() => setMsg(""), 3000); }, 1200); };
+  const toggle = (k: keyof typeof settings) => setSettings(p => ({ ...p, [k]: !p[k] }));
+  const items: { key: keyof typeof settings; label: string; desc: string; danger?: boolean }[] = [
+    { key: "registration", label: "Student Registration", desc: "Allow new students to sign up" },
+    { key: "payments",     label: "Payment Processing",   desc: "Enable subscription payments" },
+    { key: "tutorMarket",  label: "Tutor Marketplace",    desc: "Students can browse & book tutors" },
+    { key: "emails",       label: "Email Notifications",  desc: "Send automated email alerts" },
+    { key: "autoApprove",  label: "Auto-Approve Tutors",  desc: "Skip manual verification — not recommended" },
+    { key: "maintenance",  label: "Maintenance Mode",     desc: "Redirect all users to maintenance page", danger: true },
+  ];
+  return (
+    <div>
+      <PageHeader title="System Maintenance" sub="Platform settings, diagnostics and controls" theme={th} />
+      <div style={{ background: theme.card, borderRadius: 16, border: `1px solid ${theme.border}`, overflow: "hidden", marginBottom: 20 }}>
+        <div style={{ padding: "16px 20px", borderBottom: `1px solid ${theme.border}` }}><h3 style={{ margin: 0, fontFamily: F.display, fontSize: 18, color: theme.text }}>Feature Toggles</h3></div>
+        {items.map(item => (
+          <div key={item.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${theme.border}` }}>
+            <div>
+              <p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 600, color: item.danger && settings[item.key] ? theme.danger : theme.text }}>{item.label}</p>
+              <p style={{ margin: 0, fontSize: 12, color: theme.textSub }}>{item.desc}</p>
+            </div>
+            <div onClick={() => toggle(item.key)} style={{ width: 48, height: 26, borderRadius: 13, background: settings[item.key] ? (item.danger ? theme.danger : theme.success) : theme.border, cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
+              <div style={{ position: "absolute", top: 3, left: settings[item.key] ? 25 : 3, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+        <div style={{ background: theme.card, borderRadius: 16, padding: 24, border: `1px solid ${theme.border}` }}>
+          <h4 style={{ fontFamily: F.display, fontSize: 17, color: theme.text, margin: "0 0 16px" }}>Quick Actions</h4>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {["Clear System Cache","Backup Database","Export Reports (CSV)","Send Test Email"].map(a => (
+              <button key={a} onClick={() => action(a)} style={{ padding: "10px 16px", borderRadius: 8, border: `1px solid ${theme.border}`, background: "none", color: theme.textSub, fontSize: 13, cursor: "pointer", fontFamily: F.body, textAlign: "left" }}>{a}</button>
+            ))}
+          </div>
+          {msg && <p style={{ color: theme.success, fontSize: 13, margin: "10px 0 0", fontFamily: F.body }}>{msg}</p>}
+        </div>
+        <div style={{ background: theme.card, borderRadius: 16, padding: 24, border: `1px solid ${theme.border}` }}>
+          <h4 style={{ fontFamily: F.display, fontSize: 17, color: theme.text, margin: "0 0 16px" }}>Danger Zone</h4>
+          <p style={{ fontSize: 13, color: theme.textSub, margin: "0 0 16px" }}>These actions are permanent and cannot be undone.</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <button onClick={() => window.confirm("Purge all reviews?") && alert("Reviews purged.")} style={{ padding: "10px 16px", borderRadius: 8, border: `1px solid ${theme.danger}44`, background: "#FEE2E2", color: theme.danger, fontSize: 13, cursor: "pointer", fontFamily: F.body, textAlign: "left" }}>⚠️ Purge All Reviews</button>
+            <button onClick={() => window.confirm("Reset the entire platform?") && alert("Platform reset.")} style={{ padding: "10px 16px", borderRadius: 8, border: `1px solid ${theme.danger}44`, background: "#FEE2E2", color: theme.danger, fontSize: 13, cursor: "pointer", fontFamily: F.body, textAlign: "left" }}>⚠️ Reset Platform Data</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SHARED MINI COMPONENTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Needed for non-student themed refs — safe fallback to student theme
+const th = T.student;
+
+function PageHeader({ title, sub, theme, tutor = false, inline = false }: { title: string; sub: string; theme: AnyTheme; tutor?: boolean; inline?: boolean }) {
+  if (inline) return (
+    <div>
+      <h1 style={{ fontFamily: F.display, fontSize: 28, fontWeight: 900, color: (theme as typeof T.student).text, margin: "0 0 4px", letterSpacing: "-0.02em" }}>{title}</h1>
+      <p style={{ color: (theme as typeof T.student).textSub, fontSize: 14, margin: 0 }}>{sub}</p>
+    </div>
+  );
+  return (
+    <div style={{ marginBottom: 28 }}>
+      <h1 style={{ fontFamily: F.display, fontSize: 28, fontWeight: 900, color: (theme as typeof T.student).text, margin: "0 0 4px", letterSpacing: "-0.02em" }}>{title}</h1>
+      <p style={{ color: (theme as typeof T.student).textSub, fontSize: 14, margin: 0 }}>{sub}</p>
+    </div>
+  );
+}
+
+function EmptyState({ icon, text }: { icon: string; text: string }) {
+  return (
+    <div style={{ textAlign: "center", padding: "48px 20px" }}>
+      <div style={{ fontSize: 36, marginBottom: 10 }}>{icon}</div>
+      <p style={{ color: "#94A3B8", fontSize: 14, margin: 0, fontFamily: F.body }}>{text}</p>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: BookingStatus }) {
+  const config: Record<BookingStatus, { label: string; color: string; bg: string }> = {
+    pending:   { label: "Pending",   color: "#D97706", bg: "#FFF3CD" },
+    confirmed: { label: "Confirmed", color: "#2563EB", bg: "#DBEAFE" },
+    completed: { label: "Completed", color: "#059669", bg: "#D1FAE5" },
+    cancelled: { label: "Cancelled", color: "#DC2626", bg: "#FEE2E2" },
+  };
+  const c = config[status];
+  return <Badge label={c.label} color={c.color} bg={c.bg} />;
 }
