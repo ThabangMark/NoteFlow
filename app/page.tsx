@@ -295,12 +295,12 @@ function PublicExplorePage({ onGetStarted, onLogin }: { onGetStarted: () => void
       {/* ── NAV ── */}
       <nav style={{ background: "#fff", borderBottom: "1px solid #E2E8F0", padding: "0 32px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg,#2D6A4F,#52B788)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: 16, fontFamily: F.display }}>N</div>
-          <span style={{ fontFamily: F.display, fontSize: 22, fontWeight: 900, background: "linear-gradient(135deg,#2D6A4F,#52B788)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>NoteFlow</span>
+          <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg,#1E3A8A,#3B82F6)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: 16, fontFamily: F.display }}>N</div>
+          <span style={{ fontFamily: F.display, fontSize: 22, fontWeight: 900, background: "linear-gradient(135deg,#1E3A8A,#3B82F6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>NoteFlow</span>
         </div>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <button onClick={() => onLogin("student")} style={{ background: "none", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "8px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer", color: "#0F172A", fontFamily: F.body }}>Sign In</button>
-          <button onClick={onGetStarted} style={{ background: "linear-gradient(135deg,#2D6A4F,#52B788)", color: "#fff", border: "none", borderRadius: 10, padding: "9px 22px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: F.body }}>Get Started</button>
+          <button onClick={onGetStarted} style={{ background: "linear-gradient(135deg,#1E3A8A,#3B82F6)", color: "#fff", border: "none", borderRadius: 10, padding: "9px 22px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: F.body }}>Get Started</button>
         </div>
       </nav>
 
@@ -314,7 +314,7 @@ function PublicExplorePage({ onGetStarted, onLogin }: { onGetStarted: () => void
           <div style={{ maxWidth: 540, margin: "0 auto", background: "#fff", borderRadius: 14, display: "flex", alignItems: "center", padding: "6px 6px 6px 18px", boxShadow: "0 16px 40px rgba(0,0,0,0.18)" }}>
             <svg width="18" height="18" fill="none" stroke="#94A3B8" strokeWidth="2" viewBox="0 0 24 24" style={{ flexShrink: 0, marginRight: 10 }}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search notes, modules, exam papers..." style={{ flex: 1, border: "none", outline: "none", fontSize: 15, color: "#0F172A", background: "transparent", fontFamily: F.body }} />
-            <button style={{ background: "linear-gradient(135deg,#2D6A4F,#52B788)", color: "#fff", border: "none", borderRadius: 10, padding: "10px 22px", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: F.body }}>Search</button>
+            <button style={{ background: "linear-gradient(135deg,#1E3A8A,#3B82F6)", color: "#fff", border: "none", borderRadius: 10, padding: "10px 22px", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: F.body }}>Search</button>
           </div>
           <div style={{ display: "flex", justifyContent: "center", gap: 40, marginTop: 36, flexWrap: "wrap" }}>
             {[["500+","Study Materials"],["7","Universities"],["50+","Modules"],["Free","To Browse"]].map(([n,l]) => (
@@ -336,7 +336,7 @@ function PublicExplorePage({ onGetStarted, onLogin }: { onGetStarted: () => void
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button onClick={() => { setSelectedField(null); setSelectedModule(null); setSelectedUni(null); }} style={{ padding: "8px 18px", borderRadius: 20, border: "1.5px solid #E2E8F0", background: !selectedField && !selectedUni ? "#0F172A" : "#fff", color: !selectedField && !selectedUni ? "#fff" : "#475569", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: F.body }}>All</button>
             {FIELDS_OF_STUDY.map(f => (
-              <button key={f} onClick={() => { setSelectedField(f); setSelectedModule(null); setSelectedUni(null); }} style={{ padding: "8px 18px", borderRadius: 20, border: selectedField === f ? "none" : "1.5px solid #E2E8F0", background: selectedField === f ? "linear-gradient(135deg,#2D6A4F,#52B788)" : "#fff", color: selectedField === f ? "#fff" : "#475569", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: F.body, transition: "all 0.15s" }}>{f}</button>
+              <button key={f} onClick={() => { setSelectedField(f); setSelectedModule(null); setSelectedUni(null); }} style={{ padding: "8px 18px", borderRadius: 20, border: selectedField === f ? "none" : "1.5px solid #E2E8F0", background: selectedField === f ? "linear-gradient(135deg,#1E3A8A,#3B82F6)" : "#fff", color: selectedField === f ? "#fff" : "#475569", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: F.body, transition: "all 0.15s" }}>{f}</button>
             ))}
           </div>
         </div>
@@ -344,16 +344,16 @@ function PublicExplorePage({ onGetStarted, onLogin }: { onGetStarted: () => void
         {/* ── TABS: Universities / Fields ── */}
         <div style={{ display: "flex", borderBottom: "2px solid #E2E8F0", marginBottom: 32 }}>
           {(["universities","fields"] as const).map(t => (
-            <button key={t} onClick={() => { setActiveTab(t); setSelectedUni(null); setSelectedField(null); setSelectedModule(null); }} style={{ padding: "12px 24px", background: "none", border: "none", borderBottom: activeTab === t ? "2px solid #2D6A4F" : "2px solid transparent", marginBottom: -2, color: activeTab === t ? "#2D6A4F" : "#64748B", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: F.body, textTransform: "capitalize" }}>{t === "universities" ? "By University" : "By Field of Study"}</button>
+            <button key={t} onClick={() => { setActiveTab(t); setSelectedUni(null); setSelectedField(null); setSelectedModule(null); }} style={{ padding: "12px 24px", background: "none", border: "none", borderBottom: activeTab === t ? "2px solid #3B82F6" : "2px solid transparent", marginBottom: -2, color: activeTab === t ? "#3B82F6" : "#64748B", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: F.body, textTransform: "capitalize" }}>{t === "universities" ? "By University" : "By Field of Study"}</button>
           ))}
         </div>
 
         {/* ── BREADCRUMB ── */}
         {(selectedUni || selectedField || selectedModule) && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
-            <button onClick={() => { setSelectedUni(null); setSelectedField(null); setSelectedModule(null); }} style={{ background: "none", border: "none", color: "#2D6A4F", fontSize: 13, cursor: "pointer", fontWeight: 600, fontFamily: F.body, padding: 0 }}>Home</button>
-            {selectedUni && <><span style={{ color: "#94A3B8" }}>/</span><button onClick={() => { setSelectedModule(null); }} style={{ background: "none", border: "none", color: selectedModule ? "#2D6A4F" : "#0F172A", fontSize: 13, cursor: "pointer", fontWeight: 600, fontFamily: F.body, padding: 0 }}>{selectedUni}</button></>}
-            {selectedField && !selectedUni && <><span style={{ color: "#94A3B8" }}>/</span><button onClick={() => setSelectedModule(null)} style={{ background: "none", border: "none", color: selectedModule ? "#2D6A4F" : "#0F172A", fontSize: 13, cursor: "pointer", fontWeight: 600, fontFamily: F.body, padding: 0 }}>{selectedField}</button></>}
+            <button onClick={() => { setSelectedUni(null); setSelectedField(null); setSelectedModule(null); }} style={{ background: "none", border: "none", color: "#3B82F6", fontSize: 13, cursor: "pointer", fontWeight: 600, fontFamily: F.body, padding: 0 }}>Home</button>
+            {selectedUni && <><span style={{ color: "#94A3B8" }}>/</span><button onClick={() => { setSelectedModule(null); }} style={{ background: "none", border: "none", color: selectedModule ? "#3B82F6" : "#0F172A", fontSize: 13, cursor: "pointer", fontWeight: 600, fontFamily: F.body, padding: 0 }}>{selectedUni}</button></>}
+            {selectedField && !selectedUni && <><span style={{ color: "#94A3B8" }}>/</span><button onClick={() => setSelectedModule(null)} style={{ background: "none", border: "none", color: selectedModule ? "#3B82F6" : "#0F172A", fontSize: 13, cursor: "pointer", fontWeight: 600, fontFamily: F.body, padding: 0 }}>{selectedField}</button></>}
             {selectedModule && <><span style={{ color: "#94A3B8" }}>/</span><span style={{ color: "#0F172A", fontSize: 13, fontWeight: 600, fontFamily: F.body }}>{selectedModule}</span></>}
           </div>
         )}
@@ -387,10 +387,10 @@ function PublicExplorePage({ onGetStarted, onLogin }: { onGetStarted: () => void
               const count = SAMPLE_MATERIALS.filter(m => m.field === f).length;
               return (
                 <div key={f} onClick={() => setSelectedField(f)} style={{ background: "#fff", borderRadius: 16, padding: "22px 20px", border: "1.5px solid #E8EAE3", cursor: "pointer", transition: "all 0.2s" }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "#2D6A4F"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-3px)"; }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "#3B82F6"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-3px)"; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "#E8EAE3"; (e.currentTarget as HTMLDivElement).style.transform = "none"; }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 12, background: "#D8F3DC", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
-                    <svg width="20" height="20" fill="none" stroke="#2D6A4F" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                  <div style={{ width: 40, height: 40, borderRadius: 12, background: "#DBEAFE", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+                    <svg width="20" height="20" fill="none" stroke="#3B82F6" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
                   </div>
                   <h3 style={{ fontFamily: F.display, fontSize: 16, fontWeight: 700, color: "#0F172A", margin: "0 0 6px" }}>{f}</h3>
                   <p style={{ color: "#64748B", fontSize: 13, margin: 0 }}>{count} material{count !== 1 ? "s" : ""} available</p>
@@ -442,9 +442,9 @@ function UniCard({ uni, onClick }: { uni: typeof UNIVERSITIES[0]; onClick: () =>
   const matCount = SAMPLE_MATERIALS.filter(m => m.university === uni.name).length;
   return (
     <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} onClick={onClick}
-      style={{ background: "#fff", borderRadius: 18, padding: "24px", border: hov ? "1.5px solid #2D6A4F" : "1.5px solid #E8EAE3", cursor: "pointer", transition: "all 0.2s", transform: hov ? "translateY(-4px)" : "none", boxShadow: hov ? "0 8px 24px rgba(45,106,79,0.12)" : "0 2px 8px rgba(0,0,0,0.04)" }}>
-      <div style={{ width: 48, height: 48, borderRadius: 14, background: "linear-gradient(135deg,#D8F3DC,#B7E4C7)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
-        <svg width="22" height="22" fill="none" stroke="#2D6A4F" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      style={{ background: "#fff", borderRadius: 18, padding: "24px", border: hov ? "1.5px solid #3B82F6" : "1.5px solid #E8EAE3", cursor: "pointer", transition: "all 0.2s", transform: hov ? "translateY(-4px)" : "none", boxShadow: hov ? "0 8px 24px rgba(59,130,246,0.12)" : "0 2px 8px rgba(0,0,0,0.04)" }}>
+      <div style={{ width: 48, height: 48, borderRadius: 14, background: "linear-gradient(135deg,#DBEAFE,#BFDBFE)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+        <svg width="22" height="22" fill="none" stroke="#3B82F6" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
       </div>
       <h3 style={{ fontFamily: F.display, fontSize: 16, fontWeight: 700, color: "#0F172A", margin: "0 0 4px", lineHeight: 1.3 }}>{uni.name}</h3>
       <p style={{ color: "#64748B", fontSize: 13, margin: "0 0 14px" }}>{uni.location} · {uni.fields.length} fields</p>
@@ -454,7 +454,7 @@ function UniCard({ uni, onClick }: { uni: typeof UNIVERSITIES[0]; onClick: () =>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #F1F5F9", paddingTop: 12 }}>
         <span style={{ color: "#94A3B8", fontSize: 12 }}>{matCount} materials</span>
-        <span style={{ color: "#2D6A4F", fontSize: 13, fontWeight: 600 }}>Browse →</span>
+        <span style={{ color: "#3B82F6", fontSize: 13, fontWeight: 600 }}>Browse →</span>
       </div>
     </div>
   );
@@ -464,14 +464,14 @@ function FieldCard({ name, modules, onClick, onModuleClick }: { name: string; mo
   const [hov, setHov] = useState(false);
   return (
     <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-      style={{ background: "#fff", borderRadius: 16, padding: "20px", border: hov ? "1.5px solid #2D6A4F" : "1.5px solid #E8EAE3", transition: "all 0.2s", boxShadow: hov ? "0 8px 24px rgba(45,106,79,0.1)" : "0 2px 8px rgba(0,0,0,0.04)" }}>
+      style={{ background: "#fff", borderRadius: 16, padding: "20px", border: hov ? "1.5px solid #3B82F6" : "1.5px solid #E8EAE3", transition: "all 0.2s", boxShadow: hov ? "0 8px 24px rgba(59,130,246,0.1)" : "0 2px 8px rgba(0,0,0,0.04)" }}>
       <h3 onClick={onClick} style={{ fontFamily: F.display, fontSize: 16, fontWeight: 700, color: "#0F172A", margin: "0 0 14px", cursor: "pointer" }}>{name}</h3>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {modules.map(mod => {
           const count = SAMPLE_MATERIALS.filter(m => m.module === mod).length;
           return (
             <div key={mod} onClick={() => onModuleClick(mod)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderRadius: 8, background: "#F8FAFF", cursor: "pointer", transition: "background 0.15s" }}
-              onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = "#D8F3DC"}
+              onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = "#DBEAFE"}
               onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "#F8FAFF"}>
               <span style={{ fontSize: 13, color: "#0F172A", fontWeight: 500 }}>{mod}</span>
               <span style={{ fontSize: 11, color: "#64748B" }}>{count > 0 ? `${count} file${count > 1 ? "s" : ""}` : "—"}</span>
@@ -495,13 +495,13 @@ function FieldModulesView({ field, onModuleClick }: { field: string; onModuleCli
           const count = SAMPLE_MATERIALS.filter(m => m.module === mod).length;
           return (
             <div key={mod} onClick={() => onModuleClick(mod)} style={{ background: "#fff", borderRadius: 12, padding: "16px 18px", border: "1.5px solid #E8EAE3", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", transition: "all 0.15s" }}
-              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "#2D6A4F"; (e.currentTarget as HTMLDivElement).style.background = "#F0FDF4"; }}
+              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "#3B82F6"; (e.currentTarget as HTMLDivElement).style.background = "#EFF6FF"; }}
               onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "#E8EAE3"; (e.currentTarget as HTMLDivElement).style.background = "#fff"; }}>
               <div>
                 <p style={{ margin: "0 0 3px", fontSize: 14, fontWeight: 600, color: "#0F172A" }}>{mod}</p>
                 <p style={{ margin: 0, fontSize: 12, color: "#94A3B8" }}>{count} material{count !== 1 ? "s" : ""}</p>
               </div>
-              <svg width="16" height="16" fill="none" stroke="#2D6A4F" strokeWidth="2" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+              <svg width="16" height="16" fill="none" stroke="#3B82F6" strokeWidth="2" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
             </div>
           );
         })}
@@ -546,7 +546,7 @@ function MaterialsView({ freeMaterials, premiumMaterials, selectedModule, select
             <p style={{ margin: "0 0 3px", fontWeight: 700, fontSize: 15, color: "#92400E" }}>Premium Materials</p>
             <p style={{ margin: 0, fontSize: 13, color: "#B45309" }}>Subscribe to unlock all premium notes, past exam papers and textbooks.</p>
           </div>
-          <button onClick={onPremium} style={{ background: "linear-gradient(135deg,#D97706,#F59E0B)", color: "#fff", border: "none", borderRadius: 10, padding: "10px 22px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: F.body }}>Subscribe Now</button>
+          <button onClick={onPremium} style={{ background: "linear-gradient(135deg,#1E3A8A,#3B82F6)", color: "#fff", border: "none", borderRadius: 10, padding: "10px 22px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: F.body }}>Subscribe Now</button>
         </div>
       )}
 
@@ -570,7 +570,7 @@ function MaterialCard({ material: m, onOpen }: { material: Material; onOpen: () 
   const tc = TYPE_COLORS[m.type] || { bg: "#F1F5F9", color: "#64748B" };
   return (
     <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} onClick={onOpen}
-      style={{ background: "#fff", borderRadius: 16, padding: "20px", border: hov ? "1.5px solid #2D6A4F" : "1.5px solid #E8EAE3", cursor: "pointer", transition: "all 0.2s", transform: hov ? "translateY(-3px)" : "none", boxShadow: hov ? "0 8px 20px rgba(45,106,79,0.1)" : "0 2px 6px rgba(0,0,0,0.04)", position: "relative" }}>
+      style={{ background: "#fff", borderRadius: 16, padding: "20px", border: hov ? "1.5px solid #3B82F6" : "1.5px solid #E8EAE3", cursor: "pointer", transition: "all 0.2s", transform: hov ? "translateY(-3px)" : "none", boxShadow: hov ? "0 8px 20px rgba(59,130,246,0.1)" : "0 2px 6px rgba(0,0,0,0.04)", position: "relative" }}>
       {m.premium && <div style={{ position: "absolute", top: 14, right: 14, background: "#FFF8E1", color: "#B45309", fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 20 }}>Premium</div>}
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
         <span style={{ background: tc.bg, color: tc.color, fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>{m.type}</span>
@@ -594,10 +594,10 @@ function MaterialReader({ material: m, onBack, onSignUp }: { material: Material;
   const freePages = Math.min(3, m.pages);
   return (
     <div>
-      <button onClick={onBack} style={{ background: "none", border: "none", color: "#2D6A4F", cursor: "pointer", fontSize: 14, fontFamily: F.body, fontWeight: 600, marginBottom: 20, padding: 0, display: "flex", alignItems: "center", gap: 6 }}>← Back to Materials</button>
+      <button onClick={onBack} style={{ background: "none", border: "none", color: "#3B82F6", cursor: "pointer", fontSize: 14, fontFamily: F.body, fontWeight: 600, marginBottom: 20, padding: 0, display: "flex", alignItems: "center", gap: 6 }}>← Back to Materials</button>
       <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #E8EAE3", overflow: "hidden" }}>
         {/* Header */}
-        <div style={{ background: "linear-gradient(135deg,#1A2E2A,#2D6A4F)", padding: "28px 28px 24px" }}>
+        <div style={{ background: "linear-gradient(135deg,#0F172A,#1E3A8A)", padding: "28px 28px 24px" }}>
           <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
             <span style={{ background: "rgba(255,255,255,0.2)", color: "#fff", fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>{m.type}</span>
             <span style={{ background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)", fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>{m.year}</span>
@@ -614,7 +614,7 @@ function MaterialReader({ material: m, onBack, onSignUp }: { material: Material;
         <div style={{ padding: "24px 28px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em" }}>Document Preview — {freePages} of {m.pages} pages</h4>
-            <span style={{ background: "#D8F3DC", color: "#2D6A4F", fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>Free Preview</span>
+            <span style={{ background: "#DBEAFE", color: "#1E3A8A", fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>Free Preview</span>
           </div>
           {Array.from({ length: freePages }, (_, i) => (
             <div key={i} style={{ background: "#F8FAFF", border: "1px solid #E8EAE3", borderRadius: 12, padding: "16px 20px", marginBottom: 12 }}>
@@ -628,14 +628,14 @@ function MaterialReader({ material: m, onBack, onSignUp }: { material: Material;
           {/* Lock wall */}
           <div style={{ background: "linear-gradient(180deg,rgba(248,250,255,0) 0%,#F8FAFF 40%)", height: 60, marginTop: -60, position: "relative", zIndex: 1 }} />
           <div style={{ background: "linear-gradient(135deg,#FFF8E1,#FFF3CD)", border: "1px solid #FDE68A", borderRadius: 16, padding: "28px 24px", textAlign: "center", marginTop: 8 }}>
-            <div style={{ width: 48, height: 48, borderRadius: 16, background: "linear-gradient(135deg,#D97706,#F59E0B)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+            <div style={{ width: 48, height: 48, borderRadius: 16, background: "linear-gradient(135deg,#1E3A8A,#3B82F6)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
               <svg width="22" height="22" fill="none" stroke="#fff" strokeWidth="2.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             </div>
             <h3 style={{ fontFamily: F.display, fontSize: 20, fontWeight: 900, color: "#92400E", margin: "0 0 8px" }}>Full Document Locked</h3>
             <p style={{ color: "#B45309", fontSize: 14, margin: "0 0 20px", lineHeight: 1.6 }}>Sign up for free to access full documents, or subscribe for premium materials.</p>
             <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-              <button onClick={onSignUp} style={{ background: "linear-gradient(135deg,#2D6A4F,#52B788)", color: "#fff", border: "none", borderRadius: 10, padding: "11px 24px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: F.body }}>Sign Up Free</button>
-              <button onClick={onSignUp} style={{ background: "linear-gradient(135deg,#D97706,#F59E0B)", color: "#fff", border: "none", borderRadius: 10, padding: "11px 24px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: F.body }}>Subscribe for Premium</button>
+              <button onClick={onSignUp} style={{ background: "linear-gradient(135deg,#1E3A8A,#3B82F6)", color: "#fff", border: "none", borderRadius: 10, padding: "11px 24px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: F.body }}>Sign Up Free</button>
+              <button onClick={onSignUp} style={{ background: "linear-gradient(135deg,#1E3A8A,#3B82F6)", color: "#fff", border: "none", borderRadius: 10, padding: "11px 24px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: F.body }}>Subscribe for Premium</button>
             </div>
           </div>
         </div>
@@ -646,14 +646,14 @@ function MaterialReader({ material: m, onBack, onSignUp }: { material: Material;
 
 function PremiumModal({ onClose, onSignUp }: { onClose: () => void; onSignUp: () => void }) {
   const plans = [
-    { name: "Monthly", price: "P89", period: "/month", color: "#2D6A4F" },
+    { name: "Monthly", price: "P89", period: "/month", color: "#1E3A8A" },
     { name: "Per Semester", price: "P199", period: "/6 months", saves: "Save 55%", color: "#7C3AED", popular: true },
     { name: "Annual", price: "P299", period: "/year", saves: "Save 72%", color: "#059669" },
   ];
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
       <div style={{ background: "#fff", borderRadius: 24, width: "100%", maxWidth: 640, overflow: "hidden" }} onClick={e => e.stopPropagation()}>
-        <div style={{ background: "linear-gradient(135deg,#1A2E2A,#2D6A4F)", padding: "28px 28px 24px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div style={{ background: "linear-gradient(135deg,#0F172A,#1E3A8A)", padding: "28px 28px 24px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div><p style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>NoteFlow</p><h2 style={{ fontFamily: F.display, fontSize: 24, fontWeight: 900, color: "#fff", margin: 0 }}>Unlock Premium Materials</h2></div>
           <button onClick={onClose} style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 8, width: 34, height: 34, fontSize: 16, cursor: "pointer", color: "#fff" }}>x</button>
         </div>
@@ -663,7 +663,7 @@ function PremiumModal({ onClose, onSignUp }: { onClose: () => void; onSignUp: ()
             {plans.map(p => (
               <div key={p.name} style={{ borderRadius: 16, padding: "20px 16px", border: p.popular ? `2px solid ${p.color}` : "1.5px solid #E2E8F0", position: "relative", textAlign: "center", boxShadow: p.popular ? `0 4px 20px ${p.color}22` : "none" }}>
                 {p.popular && <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: p.color, color: "#fff", borderRadius: 20, padding: "3px 12px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>Most Popular</div>}
-                {p.saves && <div style={{ background: "#D8F3DC", color: "#2D6A4F", borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 700, marginBottom: 8, display: "inline-block" }}>{p.saves}</div>}
+                {p.saves && <div style={{ background: "#DBEAFE", color: "#1E3A8A", borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 700, marginBottom: 8, display: "inline-block" }}>{p.saves}</div>}
                 <h4 style={{ fontFamily: F.display, fontSize: 15, color: "#0F172A", margin: "0 0 8px" }}>{p.name}</h4>
                 <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 2, marginBottom: 16 }}>
                   <span style={{ fontSize: 26, fontWeight: 800, color: p.color, fontFamily: F.mono }}>{p.price}</span>
