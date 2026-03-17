@@ -305,7 +305,7 @@ function PublicExplorePage({ onGetStarted, onLogin }: { onGetStarted: () => void
       </nav>
 
       {/* ── HERO ── */}
-      <div style={{ background: "linear-gradient(135deg,#1A2E2A 0%,#2D6A4F 60%,#52B788 100%)", padding: "64px 32px 56px", textAlign: "center", position: "relative", overflow: "hidden" }}>
+      <div style={{ background: "linear-gradient(135deg,#0F172A 0%,#1E3A8A 55%,#3B82F6 100%)", padding: "64px 32px 56px", textAlign: "center", position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: -100, right: -100, width: 400, height: 400, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
         <div style={{ position: "relative", zIndex: 1 }}>
           <div style={{ display: "inline-block", background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "5px 16px", fontSize: 12, fontWeight: 700, color: "#fff", marginBottom: 18, letterSpacing: "0.08em", textTransform: "uppercase" }}>Built for Botswana Students</div>
@@ -424,7 +424,7 @@ function PublicExplorePage({ onGetStarted, onLogin }: { onGetStarted: () => void
       {showPremiumModal && <PremiumModal onClose={() => setShowPremiumModal(false)} onSignUp={() => { setShowPremiumModal(false); onGetStarted(); }} />}
 
       {/* ── FOOTER ── */}
-      <div style={{ background: "#1A2E2A", padding: "40px 32px", textAlign: "center" }}>
+      <div style={{ background: "#0F172A", padding: "40px 32px", textAlign: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "center", marginBottom: 12 }}>
           <div style={{ width: 30, height: 30, borderRadius: 8, background: "linear-gradient(135deg,#2D6A4F,#52B788)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontFamily: F.display }}>N</div>
           <span style={{ fontFamily: F.display, fontSize: 18, fontWeight: 900, color: "#fff" }}>NoteFlow</span>
