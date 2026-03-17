@@ -5,22 +5,150 @@ import React, { useState } from "react";
 // ═══════════════════════════════════════════════════════════════════════════════
 //  TYPES
 // ═══════════════════════════════════════════════════════════════════════════════
-// type DocType = "Notes" | "Exam" | "Summary" | "Textbook"
-// type NavPage = "explore"|"universities"|"courses"|"upload"|"pricing"|"dashboard"|"tutors"|"admin"
-// type UserPlan = "free" | "premium"
+type DocType = "Notes" | "Exam" | "Summary" | "Textbook";
+type NavPage = "explore" | "universities" | "courses" | "upload" | "pricing" | "dashboard" | "tutors" | "admin";
+type UserPlan = "free" | "premium";
+
+interface UserObj {
+  name: string;
+  email: string;
+  avatar: string;
+  plan: UserPlan;
+}
+
+interface Review {
+  id: number;
+  user: string;
+  avatar: string;
+  rating: number;
+  comment: string;
+  date: string;
+}
+
+interface Doc {
+  id: number;
+  title: string;
+  subject: string;
+  university: string;
+  course: string;
+  pages: number;
+  downloads: number;
+  rating: number;
+  type: DocType;
+  year: string;
+  preview: string;
+  premium: boolean;
+  reviews: Review[];
+}
+
+interface Tutor {
+  id: number;
+  name: string;
+  avatar: string;
+  university: string;
+  subjects: string[];
+  rating: number;
+  reviewCount: number;
+  rate: string;
+  bio: string;
+  available: boolean;
+  reviews: Review[];
+  email?: string;
+  status?: string;
+}
+
+interface Plan {
+  id: string;
+  name: string;
+  price: string;
+  period: string;
+  saves: string | null;
+  color: string;
+}
+
+interface AdminStudent {
+  id: number;
+  name: string;
+  email: string;
+  university?: string;
+  plan?: string;
+  status?: string;
+  joined?: string;
+}
+
+interface AdminTutor {
+  id: number;
+  name: string;
+  email?: string;
+  university?: string;
+  subjects?: string[];
+  rating?: number;
+  status?: string;
+}
+
+interface Verification {
+  id: number;
+  name: string;
+  avatar: string;
+  university: string;
+  subjects: string[];
+  rate: string;
+  bio?: string;
+  status: string;
+  date: string;
+}
+
+interface Payment {
+  id: number;
+  student: string;
+  plan: string;
+  amount: number;
+  date: string;
+  method?: string;
+  status?: string;
+  month?: number;
+}
+
+interface Rating {
+  id: number;
+  user: string;
+  target: string;
+  rating: number;
+  comment: string;
+  date: string;
+  flagged?: boolean;
+  hidden?: boolean;
+}
+
+interface AdminSettings {
+  registrationEnabled: boolean;
+  paymentsEnabled: boolean;
+  tutorMarketEnabled: boolean;
+  emailNotifications: boolean;
+  autoApprove: boolean;
+  maintenanceMode: boolean;
+}
+
+interface Log {
+  id: number;
+  action: string;
+  user: string;
+  time: string;
+  type: string;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  ADMIN THEME + CREDENTIALS
 // ═══════════════════════════════════════════════════════════════════════════════
 const AC = {
-  bg:        '#0B0D1A', sidebar:  '#07080F',   card:      '#111422',
-  cardHov:   '#161B2E', border:   'rgba(255,255,255,0.07)', borderMd: 'rgba(255,255,255,0.12)',
-  accent:    '#F0A500', accentDim:'rgba(240,165,0,0.12)',   accentBdr:'rgba(240,165,0,0.35)',
-  text:      '#E8EDF5', textSub:  '#94A3B8',   textMuted: '#4E5A6B',
-  success:   '#22C55E', successDim:'rgba(34,197,94,0.12)',
-  danger:    '#EF4444', dangerDim:'rgba(239,68,68,0.12)',
-  warning:   '#F59E0B', warningDim:'rgba(245,158,11,0.12)',
-  info:      '#6366F1', infoDim:  'rgba(99,102,241,0.12)',
+  bg:         '#0B0D1A', sidebar:   '#07080F',  card:       '#111422',
+  cardHov:    '#161B2E', border:    'rgba(255,255,255,0.07)', borderMd: 'rgba(255,255,255,0.12)',
+  accent:     '#F0A500', accentDim: 'rgba(240,165,0,0.12)',  accentBdr: 'rgba(240,165,0,0.35)',
+  text:       '#E8EDF5', textSub:   '#94A3B8',  textMuted:  '#4E5A6B',
+  success:    '#22C55E', successDim:'rgba(34,197,94,0.12)',
+  danger:     '#EF4444', dangerDim: 'rgba(239,68,68,0.12)',
+  warning:    '#F59E0B', warningDim:'rgba(245,158,11,0.12)',
+  info:       '#6366F1', infoDim:   'rgba(99,102,241,0.12)',
 };
 const AF = { head:"'Syne',sans-serif", body:"'Outfit',sans-serif", mono:"'Space Mono',monospace" };
 const ADMIN_CREDS = { username:'mark', password:'mark12345', name:'Mark' };
@@ -38,7 +166,7 @@ const universities = [
   { name:"Botswana Open University",      short:"BOU",        location:"Gaborone", emoji:"🌐", courses:["Distance Education","Public Administration","Development Studies","Agriculture","Education Management"] },
 ];
 
-const initialDocs = [
+const initialDocs: Doc[] = [
   { id:1,  title:"Introduction to Java - Full Notes",            subject:"Computer Systems Engineering", university:"Botswana Accountancy College", course:"Computer Systems Engineering", pages:45,  downloads:1230, rating:4.8, type:"Notes",    year:"1st Year", preview:"OOP concepts, classes, objects, inheritance, polymorphism...",        premium:false, reviews:[{id:1,user:"Kabo M.",   avatar:"KM",rating:5,comment:"Extremely helpful for my Java exam! Covered everything perfectly.",    date:"Feb 2024"},{id:2,user:"Lesedi T.", avatar:"LT",rating:4,comment:"Great notes but could use more code examples.",                    date:"Jan 2024"}] },
   { id:2,  title:"Mobile Application Development - Android Basics", subject:"Computer Systems Engineering", university:"Botswana Accountancy College", course:"Computer Systems Engineering", pages:38,  downloads:980,  rating:4.7, type:"Notes",    year:"2nd Year", preview:"Android Studio, XML layouts, Activities, Intents, APIs...",            premium:true,  reviews:[{id:1,user:"Thato K.",  avatar:"TK",rating:5,comment:"Best Android notes I've found. Saved my project!",                  date:"Mar 2024"}] },
   { id:3,  title:"Database Systems Exam 2023",                   subject:"Computer Systems Engineering", university:"Botswana Accountancy College", course:"Computer Systems Engineering", pages:12,  downloads:2100, rating:4.9, type:"Exam",     year:"2nd Year", preview:"SQL queries, normalization, ER diagrams, transactions...",              premium:true,  reviews:[{id:1,user:"Neo B.",    avatar:"NB",rating:5,comment:"Exact same questions came up in my exam. 10/10.",               date:"Nov 2023"},{id:2,user:"Mpho S.",  avatar:"MS",rating:5,comment:"Essential for exam prep. Highly recommend!",                    date:"Oct 2023"}] },
@@ -54,7 +182,7 @@ const initialDocs = [
   { id:13, title:"Graphic Design Principles - Visual Notes",     subject:"Graphic Design",              university:"Limkokwing University",        course:"Graphic Design",                pages:33,  downloads:990,  rating:4.6, type:"Notes",    year:"1st Year", preview:"Typography, color theory, composition, Adobe Illustrator basics...",  premium:false, reviews:[] },
 ];
 
-const initialTutors = [
+const initialTutors: Tutor[] = [
   { id:1, name:"Keabetswe Molefe",  avatar:"KM", university:"University of Botswana",       subjects:["Computer Science","Data Structures","Algorithms"],       rating:4.9, reviewCount:34, rate:"P80/hr", bio:"3rd year CS student at UB. Tutored 40+ students. Specializes in making complex algorithms easy to understand.", available:true,  reviews:[{id:1,user:"Thato N.",  avatar:"TN",rating:5,comment:"Keabo explained binary trees in a way my lecturer never could. Highly recommend!",date:"Mar 2024"},{id:2,user:"Mpho R.",   avatar:"MR",rating:5,comment:"Very patient and knowledgeable. Worth every pula.",date:"Feb 2024"}] },
   { id:2, name:"Naledi Sithole",    avatar:"NS", university:"Botswana Accountancy College", subjects:["Accounting","Financial Reporting","Taxation"],            rating:4.8, reviewCount:28, rate:"P70/hr", bio:"BAC Accounting finalist with distinctions. I break down complex financial concepts into simple, exam-ready notes.", available:true,  reviews:[{id:1,user:"Boago M.",  avatar:"BM",rating:5,comment:"Naledi helped me go from failing to distinction in 3 weeks!",date:"Apr 2024"},{id:2,user:"Kabo T.",   avatar:"KT",rating:4,comment:"Great tutor, very well prepared for every session.",date:"Mar 2024"}] },
   { id:3, name:"Tshepiso Ramotswe", avatar:"TR", university:"BIUST",                        subjects:["Electrical Engineering","Circuit Analysis","Mathematics"], rating:4.7, reviewCount:19, rate:"P90/hr", bio:"Engineering student at BIUST. Top of my class in circuits and maths. I make engineering approachable for all levels.", available:false, reviews:[{id:1,user:"Neo K.",    avatar:"NK",rating:5,comment:"Best engineering tutor in Botswana. Period.",date:"Feb 2024"}] },
@@ -63,35 +191,36 @@ const initialTutors = [
   { id:6, name:"Lorato Kgosi",      avatar:"LK", university:"Limkokwing University",        subjects:["Graphic Design","UI/UX","Branding"],                      rating:4.6, reviewCount:11, rate:"P65/hr", bio:"Creative design student at Limkokwing. I teach design principles, Adobe tools and how to build a strong portfolio.", available:true,  reviews:[{id:1,user:"Botho K.",  avatar:"BK",rating:4,comment:"Really helpful for design theory and Adobe tips.",date:"Feb 2024"}] },
 ];
 
-const typeColors = {
+const typeColors: Record<DocType, { bg: string; text: string }> = {
   Notes:    { bg:"#EAF3FF", text:"#2563EB" },
   Exam:     { bg:"#FFF0EA", text:"#C2410C" },
   Summary:  { bg:"#EAFAF1", text:"#15803D" },
   Textbook: { bg:"#F5F0FF", text:"#7C3AED" },
 };
 
-const PLANS = [
+const PLANS: Plan[] = [
   { id:"monthly",  name:"Monthly",      price:"P89",  period:"/month",   saves:null,      color:"#3B5BDB" },
   { id:"semester", name:"Per Semester", price:"P199", period:"/6 months",saves:"Save 55%", color:"#7C3AED" },
   { id:"annual",   name:"Annual",       price:"P299", period:"/year",    saves:"Save 72%", color:"#059669" },
 ];
 
-const inp = { width:"100%",padding:"12px 14px",borderRadius:"10px",border:"1.5px solid #CBD5E1",fontSize:"14px",fontFamily:"'DM Sans',sans-serif",outline:"none",color:"#0F172A",background:"#F8FAFF",boxSizing:"border-box" };
-const inputStyle = { width:"100%",padding:"13px 16px",borderRadius:"10px",border:"1.5px solid #CBD5E1",fontSize:"14px",fontFamily:"'DM Sans',sans-serif",outline:"none",color:"#0F172A",background:"#FFFFFF",boxSizing:"border-box" };
-const labelStyle = { display:"block",fontWeight:700,fontSize:"13px",color:"#0F172A",marginBottom:"8px",fontFamily:"'DM Sans',sans-serif",textTransform:"uppercase",letterSpacing:"0.04em" };
+// Fix boxSizing type errors by using CSSProperties-typed style objects
+const inp: React.CSSProperties = { width:"100%",padding:"12px 14px",borderRadius:"10px",border:"1.5px solid #CBD5E1",fontSize:"14px",fontFamily:"'DM Sans',sans-serif",outline:"none",color:"#0F172A",background:"#F8FAFF",boxSizing:"border-box" };
+const inputStyle: React.CSSProperties = { width:"100%",padding:"13px 16px",borderRadius:"10px",border:"1.5px solid #CBD5E1",fontSize:"14px",fontFamily:"'DM Sans',sans-serif",outline:"none",color:"#0F172A",background:"#FFFFFF",boxSizing:"border-box" };
+const labelStyle: React.CSSProperties = { display:"block",fontWeight:700,fontSize:"13px",color:"#0F172A",marginBottom:"8px",fontFamily:"'DM Sans',sans-serif",textTransform:"uppercase",letterSpacing:"0.04em" };
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  ORIGINAL NOTEFLOW COMPONENTS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const Stars = ({ rating, size=13 }) => (
+const Stars = ({ rating, size = 13 }: { rating: number; size?: number }) => (
   <span style={{ color:"#F59E0B",fontSize:`${size}px`,fontWeight:600 }}>
     {"★".repeat(Math.floor(rating))}{"☆".repeat(5-Math.floor(rating))}
     <span style={{ color:"#64748B",marginLeft:"4px",fontFamily:"'DM Sans',sans-serif" }}>{rating}</span>
   </span>
 );
 
-const StarPicker = ({ value, onChange }) => {
+const StarPicker = ({ value, onChange }: { value: number; onChange: (n: number) => void }) => {
   const [hovered,setHovered] = useState(0);
   return (
     <div style={{ display:"flex",gap:"4px" }}>
@@ -103,7 +232,7 @@ const StarPicker = ({ value, onChange }) => {
   );
 };
 
-const ReviewCard = ({ review }) => (
+const ReviewCard = ({ review }: { review: Review }) => (
   <div style={{ background:"#F8FAFF",borderRadius:"12px",padding:"16px 18px",border:"1px solid #E8EDF5" }}>
     <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px" }}>
       <div style={{ display:"flex",alignItems:"center",gap:"10px" }}>
@@ -119,8 +248,9 @@ const ReviewCard = ({ review }) => (
   </div>
 );
 
-const ReviewForm = ({ onSubmit, onCancel }) => {
-  const [rating,setRating]=useState(0); const [comment,setComment]=useState("");
+const ReviewForm = ({ onSubmit, onCancel }: { onSubmit: (rating: number, comment: string) => void; onCancel: () => void }) => {
+  const [rating,setRating] = useState(0);
+  const [comment,setComment] = useState("");
   return (
     <div style={{ background:"#fff",border:"1.5px solid #3B5BDB",borderRadius:"14px",padding:"20px" }}>
       <p style={{ margin:"0 0 10px",fontWeight:700,fontSize:"14px",color:"#0F172A",fontFamily:"'DM Sans',sans-serif" }}>Your Rating</p>
@@ -136,21 +266,24 @@ const ReviewForm = ({ onSubmit, onCancel }) => {
   );
 };
 
-const DocViewer = ({ doc, allDocs, user, onClose, onUpgrade, onReview }) => {
-  const [showReviewForm,setShowReviewForm]=useState(false);
-  const [timeLeft,setTimeLeft]=useState(1800);
-  const canAccess = !doc.premium || user?.plan==="premium";
+const DocViewer = ({ doc, allDocs, user, onClose, onUpgrade, onReview }: {
+  doc: Doc; allDocs: Doc[]; user: UserObj | null;
+  onClose: () => void; onUpgrade: () => void; onReview: (docId: number, rating: number, comment: string) => void;
+}) => {
+  const [showReviewForm,setShowReviewForm] = useState(false);
+  const [timeLeft,setTimeLeft] = useState(1800);
+  const canAccess = !doc.premium || user?.plan === "premium";
   const recommended = allDocs.filter(d=>d.id!==doc.id&&(d.course===doc.course||d.university===doc.university)).slice(0,3);
 
   React.useEffect(()=>{
-    if(!canAccess||user?.plan!=="free")return;
-    const t=setInterval(()=>setTimeLeft(p=>{ if(p<=1){clearInterval(t);onClose();return 0;} return p-1; }),1000);
+    if(!canAccess||user?.plan!=="free") return;
+    const t = setInterval(()=>setTimeLeft(p=>{ if(p<=1){clearInterval(t);onClose();return 0;} return p-1; }),1000);
     return ()=>clearInterval(t);
-  },[canAccess]);
+  },[canAccess, onClose, user?.plan]);
 
-  const mins=Math.floor(timeLeft/60).toString().padStart(2,"0");
-  const secs=(timeLeft%60).toString().padStart(2,"0");
-  const avgRating=doc.reviews.length?(doc.reviews.reduce((a,r)=>a+r.rating,0)/doc.reviews.length).toFixed(1):doc.rating.toFixed(1);
+  const mins = Math.floor(timeLeft/60).toString().padStart(2,"0");
+  const secs = (timeLeft%60).toString().padStart(2,"0");
+  const avgRating = doc.reviews.length ? (doc.reviews.reduce((a,r)=>a+r.rating,0)/doc.reviews.length).toFixed(1) : doc.rating.toFixed(1);
 
   return (
     <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px" }} onClick={onClose}>
@@ -189,8 +322,8 @@ const DocViewer = ({ doc, allDocs, user, onClose, onUpgrade, onReview }) => {
         ):(
           <>
             <div style={{ padding:"14px 28px",background:"#F8FAFF",borderBottom:"1px solid #E8EDF5",display:"flex",gap:"24px",flexWrap:"wrap" }}>
-              {[["📄",`${doc.pages} pages`],["👁️",`${doc.downloads.toLocaleString()} views`],["📚",doc.subject]].map(([icon,label])=>(
-                <div key={String(label)} style={{ display:"flex",alignItems:"center",gap:"6px",color:"#475569",fontSize:"13px",fontFamily:"'DM Sans',sans-serif" }}><span>{icon}</span><span>{label}</span></div>
+              {([["📄",`${doc.pages} pages`],["👁️",`${doc.downloads.toLocaleString()} views`],["📚",doc.subject]] as [string,string][]).map(([icon,label])=>(
+                <div key={label} style={{ display:"flex",alignItems:"center",gap:"6px",color:"#475569",fontSize:"13px",fontFamily:"'DM Sans',sans-serif" }}><span>{icon}</span><span>{label}</span></div>
               ))}
             </div>
             <div style={{ padding:"24px 28px" }}>
@@ -269,8 +402,8 @@ const DocViewer = ({ doc, allDocs, user, onClose, onUpgrade, onReview }) => {
   );
 };
 
-const TutorCard = ({ tutor, onOpen }) => {
-  const [hovered,setHovered]=useState(false);
+const TutorCard = ({ tutor, onOpen }: { tutor: Tutor; onOpen: (t: Tutor) => void }) => {
+  const [hovered,setHovered] = useState(false);
   return (
     <div onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)} onClick={()=>onOpen(tutor)}
       style={{ background:"#fff",borderRadius:"16px",padding:"24px",border:hovered?"1.5px solid #3B5BDB":"1.5px solid #E8EDF5",boxShadow:hovered?"0 8px 32px rgba(59,91,219,0.10)":"0 2px 8px rgba(0,0,0,0.04)",cursor:"pointer",transition:"all 0.2s",transform:hovered?"translateY(-3px)":"none" }}>
@@ -294,11 +427,14 @@ const TutorCard = ({ tutor, onOpen }) => {
   );
 };
 
-const TutorViewer = ({ tutor, user, onClose, onSignIn, onReview }) => {
-  const [showReviewForm,setShowReviewForm]=useState(false);
-  const [showBook,setShowBook]=useState(false);
-  const [booked,setBooked]=useState(false);
-  const avg=tutor.reviews.length?(tutor.reviews.reduce((a,r)=>a+r.rating,0)/tutor.reviews.length).toFixed(1):tutor.rating.toFixed(1);
+const TutorViewer = ({ tutor, user, onClose, onSignIn, onReview }: {
+  tutor: Tutor; user: UserObj | null;
+  onClose: () => void; onSignIn: () => void; onReview: (tutorId: number, rating: number, comment: string) => void;
+}) => {
+  const [showReviewForm,setShowReviewForm] = useState(false);
+  const [showBook,setShowBook] = useState(false);
+  const [booked,setBooked] = useState(false);
+  const avg = tutor.reviews.length ? (tutor.reviews.reduce((a,r)=>a+r.rating,0)/tutor.reviews.length).toFixed(1) : tutor.rating.toFixed(1);
   return (
     <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px" }} onClick={onClose}>
       <div style={{ background:"#fff",borderRadius:"24px",width:"100%",maxWidth:"700px",maxHeight:"92vh",overflowY:"auto" }} onClick={e=>e.stopPropagation()}>
@@ -372,14 +508,16 @@ const TutorViewer = ({ tutor, user, onClose, onSignIn, onReview }) => {
   );
 };
 
-const TutorsPage = ({ user, onSignIn, tutors, onReview }) => {
-  const [selectedTutor,setSelectedTutor]=useState(null);
-  const [search,setSearch]=useState("");
-  const [filterUni,setFilterUni]=useState("All");
-  const filtered=tutors.filter(t=>{
-    const q=search.toLowerCase();
-    const matchQ=!q||t.name.toLowerCase().includes(q)||t.subjects.some(s=>s.toLowerCase().includes(q));
-    const matchUni=filterUni==="All"||t.university===filterUni;
+const TutorsPage = ({ user, onSignIn, tutors, onReview }: {
+  user: UserObj | null; onSignIn: () => void; tutors: Tutor[]; onReview: (tutorId: number, rating: number, comment: string) => void;
+}) => {
+  const [selectedTutor,setSelectedTutor] = useState<Tutor | null>(null);
+  const [search,setSearch] = useState("");
+  const [filterUni,setFilterUni] = useState("All");
+  const filtered = tutors.filter(t=>{
+    const q = search.toLowerCase();
+    const matchQ = !q||t.name.toLowerCase().includes(q)||t.subjects.some(s=>s.toLowerCase().includes(q));
+    const matchUni = filterUni==="All"||t.university===filterUni;
     return matchQ&&matchUni;
   });
   return (
@@ -418,10 +556,17 @@ const TutorsPage = ({ user, onSignIn, tutors, onReview }) => {
   );
 };
 
-const PaymentModal = ({ plan, onSuccess, onClose }) => {
-  const [step,setStep]=useState("details");
-  const [cardNum,setCardNum]=useState(""); const [expiry,setExpiry]=useState(""); const [cvv,setCvv]=useState(""); const [name,setName]=useState("");
-  const handlePay=()=>{ if(!cardNum||!expiry||!cvv||!name){alert("Please fill in all card details.");return;} setStep("processing"); setTimeout(()=>{ setStep("success"); setTimeout(onSuccess,1500); },2500); };
+const PaymentModal = ({ plan, onSuccess, onClose }: { plan: Plan; onSuccess: () => void; onClose: () => void }) => {
+  const [step,setStep] = useState("details");
+  const [cardNum,setCardNum] = useState("");
+  const [expiry,setExpiry] = useState("");
+  const [cvv,setCvv] = useState("");
+  const [name,setName] = useState("");
+  const handlePay = () => {
+    if(!cardNum||!expiry||!cvv||!name){alert("Please fill in all card details.");return;}
+    setStep("processing");
+    setTimeout(()=>{ setStep("success"); setTimeout(onSuccess,1500); },2500);
+  };
   return (
     <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px" }} onClick={onClose}>
       <div style={{ background:"#fff",borderRadius:"24px",width:"100%",maxWidth:"460px",overflow:"hidden" }} onClick={e=>e.stopPropagation()}>
@@ -450,7 +595,7 @@ const PaymentModal = ({ plan, onSuccess, onClose }) => {
   );
 };
 
-const SignInModal = ({ onSignIn, onClose }) => (
+const SignInModal = ({ onSignIn, onClose }: { onSignIn: (user: UserObj) => void; onClose: () => void }) => (
   <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center" }} onClick={onClose}>
     <div style={{ background:"#fff",borderRadius:"24px",padding:"40px",width:"100%",maxWidth:"400px",margin:"0 20px",textAlign:"center" }} onClick={e=>e.stopPropagation()}>
       <div style={{ width:52,height:52,borderRadius:"14px",background:"linear-gradient(135deg,#3B5BDB,#6366F1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"24px",margin:"0 auto 16px" }}>📚</div>
@@ -466,9 +611,9 @@ const SignInModal = ({ onSignIn, onClose }) => (
   </div>
 );
 
-const DocCard = ({ doc, onOpen }) => {
-  const [hovered,setHovered]=useState(false);
-  const colors=typeColors[doc.type];
+const DocCard = ({ doc, onOpen }: { doc: Doc; onOpen: (d: Doc) => void }) => {
+  const [hovered,setHovered] = useState(false);
+  const colors = typeColors[doc.type];
   return (
     <div onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)} onClick={()=>onOpen(doc)}
       style={{ background:"#fff",borderRadius:"16px",padding:"24px",border:hovered?"1.5px solid #3B5BDB":"1.5px solid #E8EDF5",boxShadow:hovered?"0 8px 32px rgba(59,91,219,0.10)":"0 2px 8px rgba(0,0,0,0.04)",cursor:"pointer",transition:"all 0.22s",transform:hovered?"translateY(-3px)":"none",display:"flex",flexDirection:"column",gap:"14px",position:"relative" }}>
@@ -492,8 +637,8 @@ const DocCard = ({ doc, onOpen }) => {
   );
 };
 
-const PricingPage = ({ user, onSubscribe }) => {
-  const [selectedPlan,setSelectedPlan]=useState(null);
+const PricingPage = ({ user, onSubscribe }: { user: UserObj | null; onSubscribe: () => void }) => {
+  const [selectedPlan,setSelectedPlan] = useState<Plan | null>(null);
   return (
     <div style={{ maxWidth:"1100px",margin:"0 auto",padding:"40px 24px 80px" }}>
       {selectedPlan&&<PaymentModal plan={selectedPlan} onSuccess={()=>{ onSubscribe(); setSelectedPlan(null); }} onClose={()=>setSelectedPlan(null)}/>}
@@ -523,13 +668,17 @@ const PricingPage = ({ user, onSubscribe }) => {
   );
 };
 
-const UploadPage = ({ user, onSignIn }) => {
-  const [selectedUni,setSelectedUni]=useState(""); const [selectedType,setSelectedType]=useState("Notes");
-  const [title,setTitle]=useState(""); const [fileName,setFileName]=useState(""); const [submitted,setSubmitted]=useState(false); const [dragging,setDragging]=useState(false);
-  const fileInputRef=React.useRef(null);
-  const uniObj=universities.find(u=>u.name===selectedUni);
-  if(!user)return<div style={{ maxWidth:"500px",margin:"80px auto",textAlign:"center",padding:"0 24px" }}><div style={{ fontSize:"56px",marginBottom:"16px" }}>🔐</div><h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:"26px",color:"#0F172A" }}>Sign In to Upload</h2><p style={{ color:"#64748B",fontFamily:"'DM Sans',sans-serif",marginBottom:"24px" }}>You need to be signed in to share your study materials.</p><button onClick={onSignIn} style={{ background:"linear-gradient(135deg,#3B5BDB,#6366F1)",color:"#fff",border:"none",borderRadius:"12px",padding:"13px 32px",fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:"15px" }}>Sign In with Google →</button></div>;
-  if(submitted)return<div style={{ maxWidth:"600px",margin:"80px auto",textAlign:"center",padding:"0 24px" }}><div style={{ fontSize:"64px",marginBottom:"20px" }}>🎉</div><h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:"28px",color:"#0F172A" }}>Upload Successful!</h2><p style={{ color:"#64748B",fontFamily:"'DM Sans',sans-serif" }}><strong>{fileName}</strong> has been submitted.</p><button onClick={()=>{ setSubmitted(false); setFileName(""); setTitle(""); setSelectedUni(""); }} style={{ marginTop:"24px",background:"linear-gradient(135deg,#3B5BDB,#6366F1)",color:"#fff",border:"none",borderRadius:"12px",padding:"13px 28px",fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>Upload Another</button></div>;
+const UploadPage = ({ user, onSignIn }: { user: UserObj | null; onSignIn: () => void }) => {
+  const [selectedUni,setSelectedUni] = useState("");
+  const [selectedType,setSelectedType] = useState("Notes");
+  const [title,setTitle] = useState("");
+  const [fileName,setFileName] = useState("");
+  const [submitted,setSubmitted] = useState(false);
+  const [dragging,setDragging] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const uniObj = universities.find(u=>u.name===selectedUni);
+  if(!user) return <div style={{ maxWidth:"500px",margin:"80px auto",textAlign:"center",padding:"0 24px" }}><div style={{ fontSize:"56px",marginBottom:"16px" }}>🔐</div><h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:"26px",color:"#0F172A" }}>Sign In to Upload</h2><p style={{ color:"#64748B",fontFamily:"'DM Sans',sans-serif",marginBottom:"24px" }}>You need to be signed in to share your study materials.</p><button onClick={onSignIn} style={{ background:"linear-gradient(135deg,#3B5BDB,#6366F1)",color:"#fff",border:"none",borderRadius:"12px",padding:"13px 32px",fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:"15px" }}>Sign In with Google →</button></div>;
+  if(submitted) return <div style={{ maxWidth:"600px",margin:"80px auto",textAlign:"center",padding:"0 24px" }}><div style={{ fontSize:"64px",marginBottom:"20px" }}>🎉</div><h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:"28px",color:"#0F172A" }}>Upload Successful!</h2><p style={{ color:"#64748B",fontFamily:"'DM Sans',sans-serif" }}><strong>{fileName}</strong> has been submitted.</p><button onClick={()=>{ setSubmitted(false); setFileName(""); setTitle(""); setSelectedUni(""); }} style={{ marginTop:"24px",background:"linear-gradient(135deg,#3B5BDB,#6366F1)",color:"#fff",border:"none",borderRadius:"12px",padding:"13px 28px",fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>Upload Another</button></div>;
   return(
     <div style={{ maxWidth:"720px",margin:"0 auto",padding:"40px 24px 80px" }}>
       <h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:"32px",color:"#0F172A",marginBottom:"6px" }}>Upload Your Notes</h2>
@@ -540,15 +689,15 @@ const UploadPage = ({ user, onSignIn }) => {
         {uniObj&&<div><label style={labelStyle}>Course *</label><select style={inputStyle}><option value="">— Select your course —</option>{uniObj.courses.map(c=><option key={c}>{c}</option>)}</select></div>}
         <div><label style={labelStyle}>Document Type *</label><div style={{ display:"flex",gap:"10px",flexWrap:"wrap" }}>{["Notes","Exam","Summary","Textbook"].map(type=><button key={type} onClick={()=>setSelectedType(type)} style={{ padding:"10px 22px",borderRadius:"10px",fontSize:"14px",fontWeight:600,border:selectedType===type?"none":"1.5px solid #CBD5E1",background:selectedType===type?"linear-gradient(135deg,#3B5BDB,#6366F1)":"#fff",color:selectedType===type?"#fff":"#475569",cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>{type}</button>)}</div></div>
         <div><label style={labelStyle}>Upload File *</label>
-          <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.ppt,.pptx" style={{ display:"none" }} onChange={e=>{ if(e.target.files?.[0])setFileName(e.target.files[0].name); }}/>
-          <div onClick={()=>fileInputRef.current?.click()} onDragOver={e=>{ e.preventDefault(); setDragging(true); }} onDragLeave={()=>setDragging(false)} onDrop={e=>{ e.preventDefault(); setDragging(false); if(e.dataTransfer.files[0])setFileName(e.dataTransfer.files[0].name); }}
+          <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.ppt,.pptx" style={{ display:"none" }} onChange={e=>{ if(e.target.files?.[0]) setFileName(e.target.files[0].name); }}/>
+          <div onClick={()=>fileInputRef.current?.click()} onDragOver={e=>{ e.preventDefault(); setDragging(true); }} onDragLeave={()=>setDragging(false)} onDrop={e=>{ e.preventDefault(); setDragging(false); if(e.dataTransfer.files[0]) setFileName(e.dataTransfer.files[0].name); }}
             style={{ border:dragging?"2px dashed #3B5BDB":fileName?"2px solid #22C55E":"2px dashed #CBD5E1",borderRadius:"14px",padding:"32px",textAlign:"center",cursor:"pointer",background:fileName?"#F0FDF4":"#F8FAFF",transition:"all 0.2s" }}>
             <div style={{ fontSize:"32px",marginBottom:"8px" }}>{fileName?"✅":"📂"}</div>
             {fileName?<><p style={{ color:"#15803D",fontSize:"14px",fontWeight:700,margin:"0 0 2px",fontFamily:"'DM Sans',sans-serif" }}>{fileName}</p><p style={{ color:"#64748B",fontSize:"12px",margin:0,fontFamily:"'DM Sans',sans-serif" }}>Click to change</p></>
               :<><p style={{ color:"#0F172A",fontSize:"14px",fontWeight:600,margin:"0 0 4px",fontFamily:"'DM Sans',sans-serif" }}>Drag & drop or <span style={{ color:"#3B5BDB" }}>browse your computer</span></p><p style={{ color:"#94A3B8",fontSize:"12px",margin:0,fontFamily:"'DM Sans',sans-serif" }}>PDF, DOCX, PPT · Max 50MB</p></>}
           </div>
         </div>
-        <button onClick={()=>{ if(title&&selectedUni&&fileName)setSubmitted(true); else alert("Please fill in title, university and upload a file."); }} style={{ background:"linear-gradient(135deg,#3B5BDB,#6366F1)",color:"#fff",border:"none",borderRadius:"12px",padding:"15px",fontSize:"15px",fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>Upload Document →</button>
+        <button onClick={()=>{ if(title&&selectedUni&&fileName) setSubmitted(true); else alert("Please fill in title, university and upload a file."); }} style={{ background:"linear-gradient(135deg,#3B5BDB,#6366F1)",color:"#fff",border:"none",borderRadius:"12px",padding:"15px",fontSize:"15px",fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>Upload Document →</button>
       </div>
     </div>
   );
@@ -558,11 +707,11 @@ const UploadPage = ({ user, onSignIn }) => {
 //  ADMIN DASHBOARD — mini-components (prefixed A to avoid conflicts)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const ABadge = ({ label, color=AC.info }) => (
+const ABadge = ({ label, color = AC.info }: { label: string; color?: string }) => (
   <span style={{ background:color+'22',color,fontSize:'11px',fontWeight:600,padding:'3px 10px',borderRadius:'20px',fontFamily:AF.mono,whiteSpace:'nowrap' }}>{label}</span>
 );
 
-const AStatCard = ({ icon, label, value, sub, color=AC.accent }) => (
+const AStatCard = ({ icon, label, value, sub, color = AC.accent }: { icon: string; label: string; value: string | number; sub?: string; color?: string }) => (
   <div style={{ background:AC.card,borderRadius:'14px',padding:'22px 20px',border:`1px solid ${AC.border}`,flex:1,minWidth:150 }}>
     <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start' }}>
       <div>
@@ -575,7 +724,7 @@ const AStatCard = ({ icon, label, value, sub, color=AC.accent }) => (
   </div>
 );
 
-const AEmpty = ({ icon, title, desc }) => (
+const AEmpty = ({ icon, title, desc }: { icon: string; title: string; desc: string }) => (
   <div style={{ textAlign:'center',padding:'56px 20px' }}>
     <div style={{ fontSize:'40px',marginBottom:'12px' }}>{icon}</div>
     <p style={{ fontFamily:AF.body,fontSize:'15px',fontWeight:600,color:AC.textSub,margin:'0 0 6px' }}>{title}</p>
@@ -583,14 +732,14 @@ const AEmpty = ({ icon, title, desc }) => (
   </div>
 );
 
-const ASectionHead = ({ title, sub }) => (
+const ASectionHead = ({ title, sub }: { title: string; sub: string }) => (
   <div style={{ marginBottom:'28px' }}>
     <h1 style={{ fontFamily:AF.head,fontSize:'26px',color:AC.text,margin:'0 0 6px',fontWeight:800 }}>{title}</h1>
     <p style={{ color:AC.textMuted,fontSize:'14px',margin:0,fontFamily:AF.body }}>{sub}</p>
   </div>
 );
 
-const ATableHead = ({ cols, template }) => (
+const ATableHead = ({ cols, template }: { cols: string[]; template: string }) => (
   <div style={{ display:'grid',gridTemplateColumns:template,padding:'12px 20px',borderBottom:`1px solid ${AC.border}`,background:'rgba(255,255,255,0.025)' }}>
     {cols.map(h=>(
       <span key={h} style={{ fontSize:'11px',fontWeight:600,color:AC.textMuted,textTransform:'uppercase',letterSpacing:'0.07em',fontFamily:AF.body }}>{h}</span>
@@ -598,8 +747,8 @@ const ATableHead = ({ cols, template }) => (
   </div>
 );
 
-const AToggle = ({ active, onChange, danger=false }) => {
-  const bg=active?(danger?AC.danger:AC.success):AC.border;
+const AToggle = ({ active, onChange, danger = false }: { active: boolean; onChange: () => void; danger?: boolean }) => {
+  const bg = active?(danger?AC.danger:AC.success):AC.border;
   return (
     <div onClick={onChange} style={{ width:44,height:24,borderRadius:12,background:bg,cursor:'pointer',position:'relative',transition:'background 0.2s',flexShrink:0,border:`1px solid ${active?bg:AC.borderMd}` }}>
       <div style={{ position:'absolute',top:3,left:active?22:3,width:16,height:16,borderRadius:'50%',background:'#fff',transition:'left 0.2s' }}/>
@@ -607,7 +756,7 @@ const AToggle = ({ active, onChange, danger=false }) => {
   );
 };
 
-const ASearchBox = ({ value, onChange, placeholder }) => (
+const ASearchBox = ({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) => (
   <div style={{ display:'flex',alignItems:'center',gap:8,background:AC.card,border:`1px solid ${AC.border}`,borderRadius:10,padding:'8px 14px' }}>
     <span style={{ fontSize:14 }}>🔍</span>
     <input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
@@ -615,31 +764,34 @@ const ASearchBox = ({ value, onChange, placeholder }) => (
   </div>
 );
 
-const AActionBtn = ({ label, onClick, danger=false }) => (
+const AActionBtn = ({ label, onClick, danger = false }: { label: string; onClick: () => void; danger?: boolean }) => (
   <button onClick={onClick} style={{ padding:'5px 10px',borderRadius:6,border:danger?'none':`1px solid ${AC.border}`,background:danger?AC.dangerDim:'none',color:danger?AC.danger:AC.textMuted,fontSize:11,cursor:'pointer',fontFamily:AF.body,whiteSpace:'nowrap' }}>{label}</button>
 );
 
-const AGroupLabel = ({ label }) => (
+const AGroupLabel = ({ label }: { label: string }) => (
   <p style={{ fontFamily:AF.body,fontSize:12,fontWeight:600,color:AC.textMuted,textTransform:'uppercase',letterSpacing:'0.07em',margin:'0 0 12px' }}>{label}</p>
 );
 
 // ── Admin sub-pages ──────────────────────────────────────────────────────────
 
-function AdminOverview({ students, tutors, payments, ratings, verifications }) {
-  const totalRev=payments.reduce((s,p)=>s+(p.amount||0),0);
-  const pendingV=verifications.filter(v=>v.status==='pending').length;
-  const avgRat=ratings.length?(ratings.reduce((s,r)=>s+r.rating,0)/ratings.length).toFixed(1):'—';
-  const statuses=[{label:'API Server',ok:true},{label:'Database',ok:true},{label:'Payment Gateway',ok:true},{label:'Storage',ok:true},{label:'Email Service',ok:true}];
+function AdminOverview({ students, tutors, payments, ratings, verifications }: {
+  students: AdminStudent[]; tutors: AdminTutor[]; payments: Payment[];
+  ratings: Rating[]; verifications: Verification[];
+}) {
+  const totalRev = payments.reduce((s,p)=>s+(p.amount||0),0);
+  const pendingV = verifications.filter(v=>v.status==='pending').length;
+  const avgRat = ratings.length?(ratings.reduce((s,r)=>s+r.rating,0)/ratings.length).toFixed(1):'—';
+  const statuses = [{label:'API Server',ok:true},{label:'Database',ok:true},{label:'Payment Gateway',ok:true},{label:'Storage',ok:true},{label:'Email Service',ok:true}];
   return (
     <div>
       <ASectionHead title="Dashboard Overview" sub="Welcome back, Mark — here's what's happening on NoteFlow today."/>
       <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(175px,1fr))',gap:14,marginBottom:24 }}>
-        <AStatCard icon="👥" label="Total Students"  value={students.length}                        sub="Registered"       color={AC.info}    />
-        <AStatCard icon="👨‍🏫" label="Total Tutors"   value={tutors.length}                          sub="Active profiles"  color={AC.success} />
-        <AStatCard icon="💰" label="Total Revenue"   value={`P${totalRev.toLocaleString()}`}        sub="All time"         color={AC.accent}  />
-        <AStatCard icon="⏳" label="Pending Verif."  value={pendingV}                               sub="Awaiting review"  color={AC.danger}  />
-        <AStatCard icon="⭐" label="Avg. Rating"     value={avgRat}                                 sub="Platform-wide"    color={AC.warning} />
-        <AStatCard icon="💬" label="Total Reviews"   value={ratings.length}                         sub="All submitted"    color={AC.info}    />
+        <AStatCard icon="👥" label="Total Students"  value={students.length}                    sub="Registered"      color={AC.info}    />
+        <AStatCard icon="👨‍🏫" label="Total Tutors"   value={tutors.length}                      sub="Active profiles" color={AC.success} />
+        <AStatCard icon="💰" label="Total Revenue"   value={`P${totalRev.toLocaleString()}`}    sub="All time"        color={AC.accent}  />
+        <AStatCard icon="⏳" label="Pending Verif."  value={pendingV}                           sub="Awaiting review" color={AC.danger}  />
+        <AStatCard icon="⭐" label="Avg. Rating"     value={avgRat}                             sub="Platform-wide"   color={AC.warning} />
+        <AStatCard icon="💬" label="Total Reviews"   value={ratings.length}                     sub="All submitted"   color={AC.info}    />
       </div>
       <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:16 }}>
         <div style={{ background:AC.card,borderRadius:14,padding:24,border:`1px solid ${AC.border}` }}>
@@ -660,13 +812,13 @@ function AdminOverview({ students, tutors, payments, ratings, verifications }) {
   );
 }
 
-function AdminStudents({ students, setStudents }) {
-  const [search,setSearch]=useState('');
-  const filtered=students.filter(s=>!search||s.name?.toLowerCase().includes(search.toLowerCase())||s.email?.toLowerCase().includes(search.toLowerCase()));
-  const suspend=id=>setStudents(p=>p.map(s=>s.id===id?{...s,status:s.status==='suspended'?'active':'suspended'}:s));
-  const remove=id=>{ if(window.confirm('Permanently delete this student account?'))setStudents(p=>p.filter(s=>s.id!==id)); };
-  const cols=['Name','Email','University','Plan','Status','Joined','Actions'];
-  const template='1.8fr 2fr 2fr 0.8fr 0.9fr 0.9fr 130px';
+function AdminStudents({ students, setStudents }: { students: AdminStudent[]; setStudents: React.Dispatch<React.SetStateAction<AdminStudent[]>> }) {
+  const [search,setSearch] = useState('');
+  const filtered = students.filter(s=>!search||s.name?.toLowerCase().includes(search.toLowerCase())||s.email?.toLowerCase().includes(search.toLowerCase()));
+  const suspend = (id: number) => setStudents(p=>p.map(s=>s.id===id?{...s,status:s.status==='suspended'?'active':'suspended'}:s));
+  const remove = (id: number) => { if(window.confirm('Permanently delete this student account?')) setStudents(p=>p.filter(s=>s.id!==id)); };
+  const cols = ['Name','Email','University','Plan','Status','Joined','Actions'];
+  const template = '1.8fr 2fr 2fr 0.8fr 0.9fr 0.9fr 130px';
   return (
     <div>
       <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:28,flexWrap:'wrap',gap:12 }}>
@@ -696,13 +848,13 @@ function AdminStudents({ students, setStudents }) {
   );
 }
 
-function AdminTutors({ tutors, setTutors }) {
-  const [search,setSearch]=useState('');
-  const filtered=tutors.filter(t=>!search||t.name?.toLowerCase().includes(search.toLowerCase())||t.subjects?.some(s=>s.toLowerCase().includes(search.toLowerCase())));
-  const suspend=id=>setTutors(p=>p.map(t=>t.id===id?{...t,status:t.status==='suspended'?'active':'suspended'}:t));
-  const remove=id=>{ if(window.confirm('Permanently delete this tutor account?'))setTutors(p=>p.filter(t=>t.id!==id)); };
-  const cols=['Name','Email','University','Subjects','Rating','Status','Actions'];
-  const template='1.5fr 2fr 1.8fr 2fr 0.7fr 0.9fr 120px';
+function AdminTutors({ tutors, setTutors }: { tutors: AdminTutor[]; setTutors: React.Dispatch<React.SetStateAction<AdminTutor[]>> }) {
+  const [search,setSearch] = useState('');
+  const filtered = tutors.filter(t=>!search||t.name?.toLowerCase().includes(search.toLowerCase())||t.subjects?.some(s=>s.toLowerCase().includes(search.toLowerCase())));
+  const suspend = (id: number) => setTutors(p=>p.map(t=>t.id===id?{...t,status:t.status==='suspended'?'active':'suspended'}:t));
+  const remove = (id: number) => { if(window.confirm('Permanently delete this tutor account?')) setTutors(p=>p.filter(t=>t.id!==id)); };
+  const cols = ['Name','Email','University','Subjects','Rating','Status','Actions'];
+  const template = '1.5fr 2fr 1.8fr 2fr 0.7fr 0.9fr 120px';
   return (
     <div>
       <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:28,flexWrap:'wrap',gap:12 }}>
@@ -720,7 +872,7 @@ function AdminTutors({ tutors, setTutors }) {
               <span style={{ fontSize:12,color:AC.textSub,fontFamily:AF.body }}>{t.university||'—'}</span>
               <div style={{ display:'flex',gap:4,flexWrap:'wrap' }}>
                 {(t.subjects||[]).slice(0,2).map(s=><span key={s} style={{ fontSize:10,background:AC.infoDim,color:AC.info,padding:'2px 8px',borderRadius:20,fontFamily:AF.body }}>{s}</span>)}
-                {(t.subjects||[]).length>2&&<span style={{ fontSize:10,color:AC.textMuted,fontFamily:AF.body }}>+{t.subjects.length-2}</span>}
+                {(t.subjects||[]).length>2&&<span style={{ fontSize:10,color:AC.textMuted,fontFamily:AF.body }}>+{(t.subjects||[]).length-2}</span>}
               </div>
               <span style={{ fontSize:13,color:AC.accent,fontFamily:AF.mono }}>★ {t.rating||'—'}</span>
               <ABadge label={t.status||'active'} color={t.status==='suspended'?AC.danger:AC.success}/>
@@ -735,10 +887,10 @@ function AdminTutors({ tutors, setTutors }) {
   );
 }
 
-function AdminVerifications({ verifications, onVerify }) {
-  const pending=verifications.filter(v=>v.status==='pending');
-  const reviewed=verifications.filter(v=>v.status!=='pending');
-  const VerifCard=({ v })=>(
+function AdminVerifications({ verifications, onVerify }: { verifications: Verification[]; onVerify: (id: number, action: string) => void }) {
+  const pending = verifications.filter(v=>v.status==='pending');
+  const reviewed = verifications.filter(v=>v.status!=='pending');
+  const VerifCard = ({ v }: { v: Verification }) => (
     <div style={{ background:AC.cardHov,borderRadius:12,padding:20,border:`1px solid ${AC.border}`,marginBottom:12 }}>
       <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12 }}>
         <div style={{ display:'flex',gap:12,alignItems:'center' }}>
@@ -776,14 +928,14 @@ function AdminVerifications({ verifications, onVerify }) {
   );
 }
 
-function AdminPayments({ payments }) {
-  const total=payments.reduce((s,p)=>s+(p.amount||0),0);
-  const nowMonth=new Date().getMonth();
-  const thisMonth=payments.filter(p=>p.month===nowMonth).reduce((s,p)=>s+(p.amount||0),0);
-  const pending=payments.filter(p=>p.status==='pending').reduce((s,p)=>s+(p.amount||0),0);
-  const refunded=payments.filter(p=>p.status==='refunded').reduce((s,p)=>s+(p.amount||0),0);
-  const cols=['Student','Plan','Amount','Date','Method','Status'];
-  const template='2fr 1.5fr 1fr 1.2fr 1.2fr 1fr';
+function AdminPayments({ payments }: { payments: Payment[] }) {
+  const total = payments.reduce((s,p)=>s+(p.amount||0),0);
+  const nowMonth = new Date().getMonth();
+  const thisMonth = payments.filter(p=>p.month===nowMonth).reduce((s,p)=>s+(p.amount||0),0);
+  const pending = payments.filter(p=>p.status==='pending').reduce((s,p)=>s+(p.amount||0),0);
+  const refunded = payments.filter(p=>p.status==='refunded').reduce((s,p)=>s+(p.amount||0),0);
+  const cols = ['Student','Plan','Amount','Date','Method','Status'];
+  const template = '2fr 1.5fr 1fr 1.2fr 1.2fr 1fr';
   return (
     <div>
       <ASectionHead title="Payment Monitoring" sub="Track all transactions, subscriptions, and revenue"/>
@@ -816,13 +968,13 @@ function AdminPayments({ payments }) {
   );
 }
 
-function AdminRatings({ ratings, setRatings }) {
-  const [filter,setFilter]=useState('all');
-  const toggleHide=id=>setRatings(p=>p.map(r=>r.id===id?{...r,hidden:!r.hidden}:r));
-  const toggleFlag=id=>setRatings(p=>p.map(r=>r.id===id?{...r,flagged:!r.flagged}:r));
-  const deleteRev=id=>{ if(window.confirm('Delete this review?'))setRatings(p=>p.filter(r=>r.id!==id)); };
-  const visible=ratings.filter(r=>filter==='all'?true:filter==='flagged'?r.flagged:filter==='hidden'?r.hidden:true);
-  const avg=ratings.length?(ratings.reduce((s,r)=>s+r.rating,0)/ratings.length).toFixed(1):'—';
+function AdminRatings({ ratings, setRatings }: { ratings: Rating[]; setRatings: React.Dispatch<React.SetStateAction<Rating[]>> }) {
+  const [filter,setFilter] = useState('all');
+  const toggleHide = (id: number) => setRatings(p=>p.map(r=>r.id===id?{...r,hidden:!r.hidden}:r));
+  const toggleFlag = (id: number) => setRatings(p=>p.map(r=>r.id===id?{...r,flagged:!r.flagged}:r));
+  const deleteRev = (id: number) => { if(window.confirm('Delete this review?')) setRatings(p=>p.filter(r=>r.id!==id)); };
+  const visible = ratings.filter(r=>filter==='all'?true:filter==='flagged'?r.flagged:filter==='hidden'?r.hidden:true);
+  const avg = ratings.length?(ratings.reduce((s,r)=>s+r.rating,0)/ratings.length).toFixed(1):'—';
   return (
     <div>
       <ASectionHead title="Ratings & Reviews" sub="Monitor and moderate all platform reviews"/>
@@ -868,18 +1020,18 @@ function AdminRatings({ ratings, setRatings }) {
   );
 }
 
-function AdminMaintenance({ settings, onToggle, logs }) {
-  const [cacheMsg,setCacheMsg]=useState('');
-  const [backupMsg,setBackupMsg]=useState('');
-  const clearCache=()=>{ setCacheMsg('Clearing…'); setTimeout(()=>{ setCacheMsg('Cache cleared ✓'); setTimeout(()=>setCacheMsg(''),3000); },1200); };
-  const doBackup=()=>{ setBackupMsg('Backing up…'); setTimeout(()=>{ setBackupMsg('Backup complete ✓'); setTimeout(()=>setBackupMsg(''),3000); },1800); };
-  const toggleItems=[
-    { key:'registrationEnabled',label:'Student Registration',desc:'Allow new students to sign up'           },
-    { key:'paymentsEnabled',    label:'Payment Processing',   desc:'Enable subscription payments'            },
-    { key:'tutorMarketEnabled', label:'Tutor Marketplace',    desc:'Students can browse & book tutors'       },
-    { key:'emailNotifications', label:'Email Notifications',  desc:'Send automated email alerts to users'    },
-    { key:'autoApprove',        label:'Auto-Approve Tutors',  desc:'Skip manual verification — not recommended'},
-    { key:'maintenanceMode',    label:'Maintenance Mode',     desc:'Redirect all users to maintenance notice',danger:true },
+function AdminMaintenance({ settings, onToggle, logs }: { settings: AdminSettings; onToggle: (key: keyof AdminSettings) => void; logs: Log[] }) {
+  const [cacheMsg,setCacheMsg] = useState('');
+  const [backupMsg,setBackupMsg] = useState('');
+  const clearCache = () => { setCacheMsg('Clearing…'); setTimeout(()=>{ setCacheMsg('Cache cleared ✓'); setTimeout(()=>setCacheMsg(''),3000); },1200); };
+  const doBackup = () => { setBackupMsg('Backing up…'); setTimeout(()=>{ setBackupMsg('Backup complete ✓'); setTimeout(()=>setBackupMsg(''),3000); },1800); };
+  const toggleItems: { key: keyof AdminSettings; label: string; desc: string; danger?: boolean }[] = [
+    { key:'registrationEnabled', label:'Student Registration', desc:'Allow new students to sign up'            },
+    { key:'paymentsEnabled',     label:'Payment Processing',   desc:'Enable subscription payments'             },
+    { key:'tutorMarketEnabled',  label:'Tutor Marketplace',    desc:'Students can browse & book tutors'        },
+    { key:'emailNotifications',  label:'Email Notifications',  desc:'Send automated email alerts to users'     },
+    { key:'autoApprove',         label:'Auto-Approve Tutors',  desc:'Skip manual verification — not recommended'},
+    { key:'maintenanceMode',     label:'Maintenance Mode',     desc:'Redirect all users to maintenance notice', danger:true },
   ];
   return (
     <div>
@@ -894,7 +1046,7 @@ function AdminMaintenance({ settings, onToggle, logs }) {
               <p style={{ margin:'0 0 2px',fontSize:14,fontWeight:600,color:item.danger&&settings[item.key]?AC.danger:AC.text,fontFamily:AF.body }}>{item.label}</p>
               <p style={{ margin:0,fontSize:12,color:AC.textMuted,fontFamily:AF.body }}>{item.desc}</p>
             </div>
-            <AToggle active={settings[item.key]} onChange={()=>onToggle(item.key)} danger={item.danger}/>
+            <AToggle active={settings[item.key] as boolean} onChange={()=>onToggle(item.key)} danger={item.danger}/>
           </div>
         ))}
       </div>
@@ -946,38 +1098,38 @@ const ADMIN_NAV = [
   { id:'maintenance',   label:'Maintenance',    emoji:'⊕' },
 ];
 
-function AdminDashboard({ onExit }) {
-  const [screen,setScreen]     = useState('login');
-  const [adminTab,setAdminTab] = useState('overview');
-  const [uInput,setUInput]     = useState('');
-  const [pInput,setPInput]     = useState('');
-  const [showPass,setShowPass] = useState(false);
-  const [loginErr,setLoginErr] = useState('');
+function AdminDashboard({ onExit }: { onExit: () => void }) {
+  const [screen,setScreen]      = useState('login');
+  const [adminTab,setAdminTab]  = useState('overview');
+  const [uInput,setUInput]      = useState('');
+  const [pInput,setPInput]      = useState('');
+  const [showPass,setShowPass]  = useState(false);
+  const [loginErr,setLoginErr]  = useState('');
 
-  const [adminStudents,     setAdminStudents]     = useState([]);
-  const [adminTutors,       setAdminTutors]       = useState([]);
-  const [adminVerifications,setAdminVerifications]= useState([]);
-  const [adminPayments]                           = useState([]);
-  const [adminRatings,      setAdminRatings]      = useState([]);
-  const [adminSettings,     setAdminSettings]     = useState({
+  const [adminStudents,      setAdminStudents]      = useState<AdminStudent[]>([]);
+  const [adminTutors,        setAdminTutors]        = useState<AdminTutor[]>([]);
+  const [adminVerifications, setAdminVerifications] = useState<Verification[]>([]);
+  const [adminPayments]                             = useState<Payment[]>([]);
+  const [adminRatings,       setAdminRatings]       = useState<Rating[]>([]);
+  const [adminSettings,      setAdminSettings]      = useState<AdminSettings>({
     registrationEnabled:true, paymentsEnabled:true, tutorMarketEnabled:true,
     emailNotifications:true, autoApprove:false, maintenanceMode:false,
   });
-  const adminLogs = [
+  const adminLogs: Log[] = [
     { id:1,action:'Admin signed in',    user:'Mark',  time:'Just now',  type:'info'    },
     { id:2,action:'System initialised', user:'System',time:'1 min ago', type:'success' },
     { id:3,action:'Database connected', user:'System',time:'1 min ago', type:'success' },
   ];
 
-  const handleLogin=()=>{
+  const handleLogin = () => {
     if(uInput.toLowerCase()===ADMIN_CREDS.username&&pInput===ADMIN_CREDS.password){
       setScreen('dashboard'); setLoginErr('');
     } else { setLoginErr('Invalid username or password. Please try again.'); }
   };
 
-  const handleVerify=(id,action)=>setAdminVerifications(p=>p.map(v=>v.id===id?{...v,status:action}:v));
-  const handleToggle=key=>setAdminSettings(p=>({...p,[key]:!p[key]}));
-  const pendingCount=adminVerifications.filter(v=>v.status==='pending').length;
+  const handleVerify = (id: number, action: string) => setAdminVerifications(p=>p.map(v=>v.id===id?{...v,status:action}:v));
+  const handleToggle = (key: keyof AdminSettings) => setAdminSettings(p=>({...p,[key]:!p[key]}));
+  const pendingCount = adminVerifications.filter(v=>v.status==='pending').length;
 
   // ── LOGIN ────────────────────────────────────────────────────────────────
   if(screen==='login') return (
@@ -997,14 +1149,14 @@ function AdminDashboard({ onExit }) {
           <div>
             <label style={{ display:'block',fontSize:11,fontWeight:600,color:AC.textSub,marginBottom:7,textTransform:'uppercase',letterSpacing:'0.07em',fontFamily:AF.body }}>Username</label>
             <input value={uInput} onChange={e=>setUInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()} placeholder="Enter username"
-              style={{ width:'100%',padding:'12px 14px',background:AC.bg,border:`1px solid ${AC.border}`,borderRadius:10,color:AC.text,fontSize:14,fontFamily:AF.body,outline:'none',boxSizing:'border-box' }}/>
+              style={{ width:'100%',padding:'12px 14px',background:AC.bg,border:`1px solid ${AC.border}`,borderRadius:10,color:AC.text,fontSize:14,fontFamily:AF.body,outline:'none',boxSizing:'border-box' as const }}/>
           </div>
           <div>
             <label style={{ display:'block',fontSize:11,fontWeight:600,color:AC.textSub,marginBottom:7,textTransform:'uppercase',letterSpacing:'0.07em',fontFamily:AF.body }}>Password</label>
             <div style={{ position:'relative' }}>
               <input type={showPass?'text':'password'} value={pInput} onChange={e=>setPInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()} placeholder="Enter password"
-                style={{ width:'100%',padding:'12px 44px 12px 14px',background:AC.bg,border:`1px solid ${AC.border}`,borderRadius:10,color:AC.text,fontSize:14,fontFamily:AF.body,outline:'none',boxSizing:'border-box' }}/>
-              <button onClick={()=>setShowPass(p=>!p)} style={{ position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',color:AC.textMuted,fontSize:14,lineHeight:1 }}>{showPass?'🙈':'👁️'}</button>
+                style={{ width:'100%',padding:'12px 44px 12px 14px',background:AC.bg,border:`1px solid ${AC.border}`,borderRadius:10,color:AC.text,fontSize:14,fontFamily:AF.body,outline:'none',boxSizing:'border-box' as const }}/>
+              <button onClick={()=>setShowPass((p:boolean)=>!p)} style={{ position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',color:AC.textMuted,fontSize:14,lineHeight:1 }}>{showPass?'🙈':'👁️'}</button>
             </div>
           </div>
           {loginErr&&(
@@ -1023,7 +1175,7 @@ function AdminDashboard({ onExit }) {
   );
 
   // ── DASHBOARD ────────────────────────────────────────────────────────────
-  const renderAdminTab=()=>{
+  const renderAdminTab = () => {
     switch(adminTab){
       case 'overview':      return <AdminOverview students={adminStudents} tutors={adminTutors} payments={adminPayments} ratings={adminRatings} verifications={adminVerifications}/>;
       case 'students':      return <AdminStudents students={adminStudents} setStudents={setAdminStudents}/>;
@@ -1056,8 +1208,8 @@ function AdminDashboard({ onExit }) {
         </div>
         <nav style={{ flex:1,display:'flex',flexDirection:'column',gap:3 }}>
           {ADMIN_NAV.map(item=>{
-            const isActive=adminTab===item.id;
-            const badge=item.id==='verifications'?pendingCount:item.id==='students'?adminStudents.length:item.id==='tutors'?adminTutors.length:0;
+            const isActive = adminTab===item.id;
+            const badge = item.id==='verifications'?pendingCount:item.id==='students'?adminStudents.length:item.id==='tutors'?adminTutors.length:0;
             return(
               <button key={item.id} onClick={()=>setAdminTab(item.id)} style={{ display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 12px',borderRadius:10,border:'none',cursor:'pointer',background:isActive?AC.accentDim:'transparent',color:isActive?AC.accent:AC.textSub,fontSize:14,fontFamily:AF.body,fontWeight:isActive?600:400,transition:'all 0.15s',textAlign:'left',width:'100%' }}>
                 <div style={{ display:'flex',alignItems:'center',gap:10 }}>
@@ -1076,7 +1228,6 @@ function AdminDashboard({ onExit }) {
           </div>
           <button onClick={()=>{ setScreen('login'); setUInput(''); setPInput(''); }} title="Sign out" style={{ background:'none',border:'none',cursor:'pointer',color:AC.textMuted,fontSize:16,padding:4,lineHeight:1 }}>⎋</button>
         </div>
-        {/* Back to site */}
         <button onClick={onExit} style={{ marginTop:10,background:'none',border:`1px solid ${AC.border}`,borderRadius:8,padding:'8px 12px',color:AC.textMuted,fontSize:12,cursor:'pointer',fontFamily:AF.body,textAlign:'left' }}>← Back to NoteFlow</button>
       </aside>
       {/* Main */}
@@ -1088,33 +1239,32 @@ function AdminDashboard({ onExit }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  MAIN APP  ← single default export, everything lives here
+//  MAIN APP
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function NoteFlow() {
-  const [docs,setDocs]               = useState(initialDocs);
-  const [tutors,setTutors]           = useState(initialTutors);
+  const [docs,setDocs]               = useState<Doc[]>(initialDocs);
+  const [tutors,setTutors]           = useState<Tutor[]>(initialTutors);
   const [search,setSearch]           = useState("");
-  const [activePage,setActivePage]   = useState("explore");
+  const [activePage,setActivePage]   = useState<NavPage>("explore");
   const [activeUni,setActiveUni]     = useState("All Universities");
   const [activeType,setActiveType]   = useState("All Types");
-  const [selectedDoc,setSelectedDoc] = useState(null);
-  const [user,setUser]               = useState(null);
+  const [selectedDoc,setSelectedDoc] = useState<Doc | null>(null);
+  const [user,setUser]               = useState<UserObj | null>(null);
   const [showSignIn,setShowSignIn]   = useState(false);
 
-  // If admin page is active, render the full admin shell (with its own login)
-  if (activePage === "admin") {
+  if(activePage==="admin"){
     return (
       <>
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Syne:wght@700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
-        <AdminDashboard onExit={() => setActivePage("explore")} />
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Syne:wght@700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+        <AdminDashboard onExit={()=>setActivePage("explore")}/>
       </>
     );
   }
 
-  const allUnis    = ["All Universities",...universities.map(u=>u.short)];
-  const docTypes   = ["All Types","Notes","Exam","Summary","Textbook"];
+  const allUnis  = ["All Universities",...universities.map(u=>u.short)];
+  const docTypes = ["All Types","Notes","Exam","Summary","Textbook"];
 
-  const handleDocReview=(docId,rating,comment)=>{
+  const handleDocReview = (docId: number, rating: number, comment: string) => {
     setDocs(prev=>prev.map(d=>d.id!==docId?d:{
       ...d,
       reviews:[...d.reviews,{ id:d.reviews.length+1,user:user?.name||"Anonymous",avatar:user?.avatar||"AN",rating,comment,date:new Date().toLocaleDateString("en-GB",{month:"short",year:"numeric"}) }],
@@ -1122,7 +1272,7 @@ export default function NoteFlow() {
     }));
   };
 
-  const handleTutorReview=(tutorId,rating,comment)=>{
+  const handleTutorReview = (tutorId: number, rating: number, comment: string) => {
     setTutors(prev=>prev.map(t=>t.id!==tutorId?t:{
       ...t,
       reviews:[...t.reviews,{ id:t.reviews.length+1,user:user?.name||"Anonymous",avatar:user?.avatar||"AN",rating,comment,date:new Date().toLocaleDateString("en-GB",{month:"short",year:"numeric"}) }],
@@ -1131,26 +1281,26 @@ export default function NoteFlow() {
     }));
   };
 
-  const filtered=docs.filter(doc=>{
-    const q=search.toLowerCase();
-    const matchSearch=!q||doc.title.toLowerCase().includes(q)||doc.subject.toLowerCase().includes(q)||doc.university.toLowerCase().includes(q)||doc.preview.toLowerCase().includes(q);
-    const matchUni=activeUni==="All Universities"||universities.find(u=>u.short===activeUni)?.name===doc.university;
-    const matchType=activeType==="All Types"||doc.type===activeType;
+  const filtered = docs.filter(doc=>{
+    const q = search.toLowerCase();
+    const matchSearch = !q||doc.title.toLowerCase().includes(q)||doc.subject.toLowerCase().includes(q)||doc.university.toLowerCase().includes(q)||doc.preview.toLowerCase().includes(q);
+    const matchUni = activeUni==="All Universities"||universities.find(u=>u.short===activeUni)?.name===doc.university;
+    const matchType = activeType==="All Types"||doc.type===activeType;
     return matchSearch&&matchUni&&matchType;
   });
 
   const navItems = [
-    { label:"Explore",   page:"explore"       },
-    { label:"Universities", page:"universities" },
-    { label:"Courses",   page:"courses"        },
-    { label:"Tutors",    page:"tutors"         },
-    { label:"Upload",    page:"upload"         },
-    { label:"💎 Premium",page:"pricing"        },
+    { label:"Explore",      page:"explore"       as NavPage },
+    { label:"Universities", page:"universities"  as NavPage },
+    { label:"Courses",      page:"courses"       as NavPage },
+    { label:"Tutors",       page:"tutors"        as NavPage },
+    { label:"Upload",       page:"upload"        as NavPage },
+    { label:"💎 Premium",   page:"pricing"       as NavPage },
   ];
 
   return (
     <div style={{ fontFamily:"'DM Sans',sans-serif",background:"#F8FAFF",minHeight:"100vh" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 
       {showSignIn&&<SignInModal onSignIn={u=>{ setUser(u); setShowSignIn(false); }} onClose={()=>setShowSignIn(false)}/>}
       {selectedDoc&&<DocViewer doc={docs.find(d=>d.id===selectedDoc.id)||selectedDoc} allDocs={docs} user={user} onClose={()=>setSelectedDoc(null)} onUpgrade={()=>{ setSelectedDoc(null); setActivePage("pricing"); }} onReview={handleDocReview}/>}
@@ -1174,15 +1324,14 @@ export default function NoteFlow() {
           ):(
             <button onClick={()=>setShowSignIn(true)} style={{ background:"linear-gradient(135deg,#3B5BDB,#6366F1)",color:"#fff",border:"none",borderRadius:"10px",padding:"9px 20px",fontSize:"14px",fontWeight:600,cursor:"pointer" }}>Sign In</button>
           )}
-          {/* ── ADMIN LINK (small, subtle) ── */}
           <span onClick={()=>setActivePage("admin")} title="Admin Panel" style={{ color:"#94A3B8",fontSize:"12px",cursor:"pointer",padding:"4px 8px",borderRadius:"6px",border:"1px solid #E2E8F0",fontFamily:"'DM Sans',sans-serif" }}>🛡️ Admin</span>
         </div>
       </nav>
 
       {/* PAGES */}
-      {activePage==="tutors"      && <TutorsPage user={user} onSignIn={()=>setShowSignIn(true)} tutors={tutors} onReview={handleTutorReview}/>}
-      {activePage==="upload"      && <UploadPage user={user} onSignIn={()=>setShowSignIn(true)}/>}
-      {activePage==="pricing"     && <PricingPage user={user} onSubscribe={()=>{ if(user)setUser({...user,plan:"premium"}); setActivePage("explore"); }}/>}
+      {activePage==="tutors"       && <TutorsPage user={user} onSignIn={()=>setShowSignIn(true)} tutors={tutors} onReview={handleTutorReview}/>}
+      {activePage==="upload"       && <UploadPage user={user} onSignIn={()=>setShowSignIn(true)}/>}
+      {activePage==="pricing"      && <PricingPage user={user} onSubscribe={()=>{ if(user) setUser({...user,plan:"premium"}); setActivePage("explore"); }}/>}
 
       {activePage==="universities"&&(
         <div style={{ maxWidth:"1200px",margin:"0 auto",padding:"40px 24px" }}>
@@ -1190,8 +1339,8 @@ export default function NoteFlow() {
           <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:"20px" }}>
             {universities.map(uni=>(
               <div key={uni.name} onClick={()=>{ setActiveUni(uni.short); setActivePage("explore"); }} style={{ background:"#fff",borderRadius:"16px",padding:"28px",border:"1.5px solid #E8EDF5",cursor:"pointer",transition:"all 0.2s" }}
-                onMouseEnter={e=>{ e.currentTarget.style.borderColor="#3B5BDB"; e.currentTarget.style.transform="translateY(-3px)"; }}
-                onMouseLeave={e=>{ e.currentTarget.style.borderColor="#E8EDF5"; e.currentTarget.style.transform="none"; }}>
+                onMouseEnter={e=>{ (e.currentTarget as HTMLDivElement).style.borderColor="#3B5BDB"; (e.currentTarget as HTMLDivElement).style.transform="translateY(-3px)"; }}
+                onMouseLeave={e=>{ (e.currentTarget as HTMLDivElement).style.borderColor="#E8EDF5"; (e.currentTarget as HTMLDivElement).style.transform="none"; }}>
                 <div style={{ fontSize:"36px",marginBottom:"12px" }}>{uni.emoji}</div>
                 <h3 style={{ fontFamily:"'Playfair Display',serif",fontSize:"18px",color:"#0F172A",margin:"0 0 4px" }}>{uni.name}</h3>
                 <p style={{ color:"#64748B",fontSize:"13px",margin:"0 0 16px",fontFamily:"'DM Sans',sans-serif" }}>📍 {uni.location}</p>
@@ -1238,7 +1387,7 @@ export default function NoteFlow() {
                 <button style={{ background:"linear-gradient(135deg,#3B5BDB,#6366F1)",color:"white",border:"none",borderRadius:"10px",padding:"12px 24px",fontSize:"14px",fontWeight:600,cursor:"pointer" }}>Search</button>
               </div>
               <div style={{ display:"flex",justifyContent:"center",gap:"40px",marginTop:"40px",flexWrap:"wrap" }}>
-                {[["500+","Documents"],["7+","Institutions"],["6","Tutors"]].map(([num,label])=>(
+                {([["500+","Documents"],["7+","Institutions"],["6","Tutors"]] as [string,string][]).map(([num,label])=>(
                   <div key={label} style={{ textAlign:"center" }}>
                     <div style={{ fontSize:"26px",fontWeight:800,color:"#FFFFFF",fontFamily:"'Playfair Display',serif" }}>{num}</div>
                     <div style={{ fontSize:"13px",color:"rgba(255,255,255,0.65)",marginTop:"2px" }}>{label}</div>
