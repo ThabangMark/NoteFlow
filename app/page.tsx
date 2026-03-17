@@ -14,7 +14,7 @@ type VerifStatus = "pending" | "approved" | "rejected";
 interface User { id: number; name: string; email: string; role: Role; avatar: string; }
 interface TutorProfile {
  id: number; userId: number; name: string; avatar: string; university: string;
- subjects: string[]; qualifications: string[]; bio: string; rate: number;
+ modules: string[]; qualifications: string[]; bio: string; rate: number;
  available: boolean; rating: number; reviewCount: number; verified: VerifStatus;
  earnings: number; joined: string;
 }
@@ -24,7 +24,7 @@ interface StudentProfile {
 }
 interface Booking {
  id: number; studentId: number; tutorId: number; studentName: string; tutorName: string;
- subject: string; date: string; time: string; status: BookingStatus;
+ module: string; date: string; time: string; status: BookingStatus;
  note: string; amount: number; createdAt: string;
 }
 interface Message {
@@ -101,7 +101,7 @@ const ADMIN_USER: User = { id: 0, name: "Mark", email: "mark@noteflow.bw", role:
 
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
 export default function App() {
- const [screen, setScreen] = useState<"landing" | "login" | "dashboard">("landing");
+ const [screen, setScreen] = useState<"explore" | "landing" | "login" | "dashboard">("explore");
  const [loginRole, setLoginRole] = useState<Role>("student");
  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
@@ -114,12 +114,22 @@ export default function App() {
  const [payments, setPayments] = useState<Payment[]>([]);
 
  const handleLogin = (user: User) => { setCurrentUser(user); setScreen("dashboard"); };
- const handleLogout = () => { setCurrentUser(null); setScreen("landing"); };
+ const handleLogout = () => { setCurrentUser(null); setScreen("explore"); };
+
+ if (screen === "explore") return (
+ <>
+ <FontLink />
+ <PublicExplorePage
+   onGetStarted={() => setScreen("landing")}
+   onLogin={(role) => { setLoginRole(role); setScreen("login"); }}
+ />
+ </>
+ );
 
  if (screen === "landing") return (
  <>
  <FontLink />
- <LandingPage onChooseRole={(role) => { setLoginRole(role); setScreen("login"); }} />
+ <LandingPage onChooseRole={(role) => { setLoginRole(role); setScreen("login"); }} onBack={() => setScreen("explore")} />
  </>
  );
 
@@ -145,10 +155,535 @@ export default function App() {
  );
 }
 
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PUBLIC DATA — Universities, Fields of Study, Materials
+// ═══════════════════════════════════════════════════════════════════════════════
+interface Material {
+  id: number; title: string; type: "Notes" | "Exam Paper" | "Summary" | "Textbook";
+  module: string; university: string; field: string;
+  pages: number; downloads: number; rating: number; year: string; premium: boolean;
+  preview: string;
+}
+
+const UNIVERSITIES = [
+  {
+    name: "Botswana Accountancy College", short: "BAC", location: "Gaborone",
+    fields: [
+      { name: "Software Engineering & IT", modules: ["Mobile Development", "Introduction to Java", "Fundamentals of Cloud Computing", "Database Systems", "Web Development", "Computer Networks"] },
+      { name: "Accounting & Finance", modules: ["Financial Accounting", "Botswana Taxation", "Auditing", "Management Accounting", "Corporate Finance"] },
+      { name: "Business Administration", modules: ["Business Law", "Strategic Management", "Entrepreneurship", "Human Resources", "Marketing"] },
+      { name: "Information Technology", modules: ["Networking Fundamentals", "Cybersecurity", "Systems Analysis", "IT Project Management"] },
+    ],
+  },
+  {
+    name: "University of Botswana", short: "UB", location: "Gaborone",
+    fields: [
+      { name: "Computer Science", modules: ["Data Structures & Algorithms", "Operating Systems", "Software Engineering", "Artificial Intelligence", "Computer Graphics"] },
+      { name: "Law", modules: ["Constitutional Law", "Contract Law", "Criminal Law", "Land Law", "Administrative Law"] },
+      { name: "Medicine", modules: ["Anatomy & Physiology", "Pharmacology", "Pathology", "Clinical Medicine", "Public Health"] },
+      { name: "Engineering", modules: ["Thermodynamics", "Fluid Mechanics", "Structural Analysis", "Engineering Mathematics"] },
+      { name: "Economics", modules: ["Microeconomics", "Macroeconomics", "Econometrics", "Development Economics"] },
+    ],
+  },
+  {
+    name: "BIUST", short: "BIUST", location: "Palapye",
+    fields: [
+      { name: "Civil Engineering", modules: ["Structural Engineering", "Geotechnics", "Hydraulics", "Construction Management"] },
+      { name: "Electrical Engineering", modules: ["Circuit Analysis", "Power Systems", "Digital Electronics", "Control Systems"] },
+      { name: "Computer Science", modules: ["Programming Fundamentals", "Software Development", "Machine Learning", "Data Science"] },
+      { name: "Environmental Science", modules: ["Environmental Impact Assessment", "Ecology", "Climate Change", "Conservation"] },
+    ],
+  },
+  {
+    name: "Botho University", short: "Botho", location: "Gaborone",
+    fields: [
+      { name: "Nursing", modules: ["Anatomy & Physiology", "Pharmacology", "Nursing Practice", "Mental Health", "Paediatrics"] },
+      { name: "Business Computing", modules: ["Programming", "Database Management", "Systems Analysis", "E-Commerce"] },
+      { name: "Hospitality Management", modules: ["Food & Beverage", "Front Office Operations", "Tourism Management", "Event Management"] },
+    ],
+  },
+  {
+    name: "Limkokwing University", short: "Limkokwing", location: "Gaborone",
+    fields: [
+      { name: "Graphic Design", modules: ["Typography", "Colour Theory", "Adobe Illustrator", "Brand Identity", "Print Design"] },
+      { name: "Film & Animation", modules: ["Storyboarding", "3D Modelling", "Video Production", "Motion Graphics"] },
+      { name: "Mass Communication", modules: ["Journalism", "Public Relations", "Media Law", "Digital Media"] },
+    ],
+  },
+  {
+    name: "Ba Isago University", short: "Ba Isago", location: "Gaborone",
+    fields: [
+      { name: "Accounting", modules: ["Financial Reporting", "Taxation", "Auditing", "Cost Accounting"] },
+      { name: "Human Resources", modules: ["Labour Law", "Recruitment", "Training & Development", "Compensation Management"] },
+      { name: "Supply Chain Management", modules: ["Logistics", "Procurement", "Inventory Management", "Operations Management"] },
+    ],
+  },
+  {
+    name: "Botswana Open University", short: "BOU", location: "Gaborone",
+    fields: [
+      { name: "Education Management", modules: ["Curriculum Development", "Educational Psychology", "School Administration", "Research Methods"] },
+      { name: "Public Administration", modules: ["Public Policy", "Governance", "Public Finance", "Development Studies"] },
+      { name: "Agriculture", modules: ["Crop Production", "Animal Science", "Agricultural Economics", "Soil Science"] },
+    ],
+  },
+];
+
+const SAMPLE_MATERIALS: Material[] = [
+  { id:1,  title:"Introduction to Java – Complete Notes",          type:"Notes",      module:"Introduction to Java",           university:"Botswana Accountancy College", field:"Software Engineering & IT", pages:45,  downloads:1230, rating:4.8, year:"1st Year", premium:false, preview:"OOP concepts, classes, objects, inheritance, polymorphism, exception handling and more." },
+  { id:2,  title:"Mobile Development – Android Basics",            type:"Notes",      module:"Mobile Development",             university:"Botswana Accountancy College", field:"Software Engineering & IT", pages:38,  downloads:980,  rating:4.7, year:"2nd Year", premium:true,  preview:"Android Studio setup, XML layouts, Activities, Intents, RecyclerView, REST APIs." },
+  { id:3,  title:"Cloud Computing Exam Paper 2024",                type:"Exam Paper", module:"Fundamentals of Cloud Computing", university:"Botswana Accountancy College", field:"Software Engineering & IT", pages:12,  downloads:2100, rating:4.9, year:"2nd Year", premium:true,  preview:"AWS, Azure, GCP fundamentals, deployment models, SaaS/PaaS/IaaS, cloud security." },
+  { id:4,  title:"Web Development Summary – HTML CSS JS",          type:"Summary",    module:"Web Development",                university:"Botswana Accountancy College", field:"Software Engineering & IT", pages:22,  downloads:1540, rating:4.6, year:"1st Year", premium:false, preview:"HTML5 structure, CSS Flexbox & Grid, JavaScript DOM, fetch API, responsive design." },
+  { id:5,  title:"Database Systems Textbook",                      type:"Textbook",   module:"Database Systems",               university:"Botswana Accountancy College", field:"Software Engineering & IT", pages:320, downloads:870,  rating:4.5, year:"2nd Year", premium:true,  preview:"Relational model, SQL, normalization, transactions, NoSQL databases, ER diagrams." },
+  { id:6,  title:"Financial Accounting Principles",                type:"Notes",      module:"Financial Accounting",           university:"Botswana Accountancy College", field:"Accounting & Finance",      pages:60,  downloads:3200, rating:4.9, year:"1st Year", premium:false, preview:"Double entry bookkeeping, trial balance, income statement, balance sheet, cash flow." },
+  { id:7,  title:"Botswana Taxation Law Summary",                  type:"Summary",    module:"Botswana Taxation",              university:"Botswana Accountancy College", field:"Accounting & Finance",      pages:30,  downloads:1890, rating:4.7, year:"3rd Year", premium:true,  preview:"BURS regulations, VAT, PAYE, corporate tax, withholding tax, transfer pricing." },
+  { id:8,  title:"Data Structures & Algorithms – UB Notes",        type:"Notes",      module:"Data Structures & Algorithms",   university:"University of Botswana",       field:"Computer Science",          pages:48,  downloads:2750, rating:4.8, year:"2nd Year", premium:false, preview:"Arrays, linked lists, stacks, queues, trees, graphs, sorting & searching algorithms." },
+  { id:9,  title:"Operating Systems Past Papers 2019-2024",        type:"Exam Paper", module:"Operating Systems",              university:"University of Botswana",       field:"Computer Science",          pages:35,  downloads:3100, rating:4.9, year:"3rd Year", premium:true,  preview:"Process management, memory management, file systems, CPU scheduling, deadlocks." },
+  { id:10, title:"Constitutional Law of Botswana",                  type:"Notes",      module:"Constitutional Law",             university:"University of Botswana",       field:"Law",                       pages:70,  downloads:2300, rating:4.7, year:"2nd Year", premium:false, preview:"Constitution of Botswana, Bill of Rights, separation of powers, judicial review." },
+  { id:11, title:"Structural Engineering Notes",                   type:"Notes",      module:"Structural Engineering",         university:"BIUST",                        field:"Civil Engineering",          pages:55,  downloads:1100, rating:4.6, year:"2nd Year", premium:false, preview:"Load analysis, beam design, structural materials, steel and concrete design." },
+  { id:12, title:"Nursing Fundamentals – Anatomy & Physiology",    type:"Notes",      module:"Anatomy & Physiology",           university:"Botho University",             field:"Nursing",                    pages:80,  downloads:2900, rating:4.9, year:"1st Year", premium:false, preview:"Human body systems, homeostasis, cell biology, organ functions, clinical applications." },
+  { id:13, title:"Typography & Brand Identity Notes",              type:"Notes",      module:"Typography",                     university:"Limkokwing University",        field:"Graphic Design",             pages:33,  downloads:990,  rating:4.6, year:"1st Year", premium:false, preview:"Type anatomy, font selection, hierarchy, spacing, brand guidelines, logo design." },
+  { id:14, title:"Labour Law Botswana – Exam Notes",               type:"Exam Paper", module:"Labour Law",                     university:"Ba Isago University",          field:"Human Resources",            pages:20,  downloads:760,  rating:4.5, year:"2nd Year", premium:true,  preview:"Employment Act, trade unions, termination, dispute resolution, workplace rights." },
+  { id:15, title:"Circuit Analysis Complete Notes",                type:"Notes",      module:"Circuit Analysis",               university:"BIUST",                        field:"Electrical Engineering",     pages:62,  downloads:1450, rating:4.7, year:"1st Year", premium:false, preview:"Ohm's law, Kirchhoff's laws, mesh analysis, Thevenin, Norton, AC circuits, filters." },
+];
+
+const TYPE_COLORS: Record<string, { bg: string; color: string }> = {
+  "Notes":      { bg: "#EAF3FF", color: "#2563EB" },
+  "Exam Paper": { bg: "#FFF0EA", color: "#C2410C" },
+  "Summary":    { bg: "#EAFAF1", color: "#15803D" },
+  "Textbook":   { bg: "#F5F0FF", color: "#7C3AED" },
+};
+
+const FIELDS_OF_STUDY = [
+  "Software Engineering & IT", "Accounting & Finance", "Business Administration",
+  "Computer Science", "Law", "Medicine", "Engineering", "Nursing",
+  "Graphic Design", "Human Resources", "Supply Chain Management",
+  "Civil Engineering", "Electrical Engineering", "Mass Communication",
+];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PUBLIC EXPLORE PAGE
+// ═══════════════════════════════════════════════════════════════════════════════
+function PublicExplorePage({ onGetStarted, onLogin }: { onGetStarted: () => void; onLogin: (role: Role) => void }) {
+  const [activeTab, setActiveTab] = useState<"universities" | "fields">("universities");
+  const [selectedUni, setSelectedUni] = useState<string | null>(null);
+  const [selectedField, setSelectedField] = useState<string | null>(null);
+  const [selectedModule, setSelectedModule] = useState<string | null>(null);
+  const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const uni = UNIVERSITIES.find(u => u.name === selectedUni);
+
+  // Materials for current view
+  const getMaterials = () => {
+    let mats = SAMPLE_MATERIALS;
+    if (selectedModule) mats = mats.filter(m => m.module === selectedModule);
+    else if (selectedField) mats = mats.filter(m => m.field === selectedField);
+    else if (selectedUni) mats = mats.filter(m => m.university === selectedUni);
+    if (search) mats = mats.filter(m => m.title.toLowerCase().includes(search.toLowerCase()) || m.module.toLowerCase().includes(search.toLowerCase()));
+    return mats;
+  };
+
+  const freeMaterials = getMaterials().filter(m => !m.premium);
+  const premiumMaterials = getMaterials().filter(m => m.premium);
+
+  const inp: React.CSSProperties = { padding: "11px 16px", borderRadius: 10, border: "1.5px solid #E2E8F0", fontSize: 14, fontFamily: F.body, outline: "none", color: "#0F172A", background: "#fff", boxSizing: "border-box" };
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#F8FAFF", fontFamily: F.body }}>
+      {/* ── NAV ── */}
+      <nav style={{ background: "#fff", borderBottom: "1px solid #E2E8F0", padding: "0 32px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg,#2D6A4F,#52B788)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: 16, fontFamily: F.display }}>N</div>
+          <span style={{ fontFamily: F.display, fontSize: 22, fontWeight: 900, background: "linear-gradient(135deg,#2D6A4F,#52B788)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>NoteFlow</span>
+        </div>
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <button onClick={() => onLogin("student")} style={{ background: "none", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "8px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer", color: "#0F172A", fontFamily: F.body }}>Sign In</button>
+          <button onClick={onGetStarted} style={{ background: "linear-gradient(135deg,#2D6A4F,#52B788)", color: "#fff", border: "none", borderRadius: 10, padding: "9px 22px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: F.body }}>Get Started</button>
+        </div>
+      </nav>
+
+      {/* ── HERO ── */}
+      <div style={{ background: "linear-gradient(135deg,#1A2E2A 0%,#2D6A4F 60%,#52B788 100%)", padding: "64px 32px 56px", textAlign: "center", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: -100, right: -100, width: 400, height: 400, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <div style={{ display: "inline-block", background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "5px 16px", fontSize: 12, fontWeight: 700, color: "#fff", marginBottom: 18, letterSpacing: "0.08em", textTransform: "uppercase" }}>Built for Botswana Students</div>
+          <h1 style={{ fontFamily: F.display, fontSize: "clamp(32px,5vw,58px)", fontWeight: 900, color: "#fff", margin: "0 0 14px", lineHeight: 1.1, letterSpacing: "-0.02em" }}>Botswana's Student<br />Resource Platform</h1>
+          <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 17, maxWidth: 520, margin: "0 auto 32px", lineHeight: 1.6 }}>Browse notes, exam papers, summaries and textbooks from every major university in Botswana. Free and premium materials available.</p>
+          <div style={{ maxWidth: 540, margin: "0 auto", background: "#fff", borderRadius: 14, display: "flex", alignItems: "center", padding: "6px 6px 6px 18px", boxShadow: "0 16px 40px rgba(0,0,0,0.18)" }}>
+            <svg width="18" height="18" fill="none" stroke="#94A3B8" strokeWidth="2" viewBox="0 0 24 24" style={{ flexShrink: 0, marginRight: 10 }}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search notes, modules, exam papers..." style={{ flex: 1, border: "none", outline: "none", fontSize: 15, color: "#0F172A", background: "transparent", fontFamily: F.body }} />
+            <button style={{ background: "linear-gradient(135deg,#2D6A4F,#52B788)", color: "#fff", border: "none", borderRadius: 10, padding: "10px 22px", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: F.body }}>Search</button>
+          </div>
+          <div style={{ display: "flex", justifyContent: "center", gap: 40, marginTop: 36, flexWrap: "wrap" }}>
+            {[["500+","Study Materials"],["7","Universities"],["50+","Modules"],["Free","To Browse"]].map(([n,l]) => (
+              <div key={l} style={{ textAlign: "center" }}>
+                <div style={{ fontFamily: F.display, fontSize: 26, fontWeight: 900, color: "#fff" }}>{n}</div>
+                <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, marginTop: 2 }}>{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── MAIN CONTENT ── */}
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "40px 24px 80px" }}>
+
+        {/* ── FIELDS OF STUDY STRIP (Coursera-style) ── */}
+        <div style={{ marginBottom: 40 }}>
+          <h2 style={{ fontFamily: F.display, fontSize: 22, fontWeight: 700, color: "#0F172A", margin: "0 0 16px" }}>Browse by Field of Study</h2>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button onClick={() => { setSelectedField(null); setSelectedModule(null); setSelectedUni(null); }} style={{ padding: "8px 18px", borderRadius: 20, border: "1.5px solid #E2E8F0", background: !selectedField && !selectedUni ? "#0F172A" : "#fff", color: !selectedField && !selectedUni ? "#fff" : "#475569", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: F.body }}>All</button>
+            {FIELDS_OF_STUDY.map(f => (
+              <button key={f} onClick={() => { setSelectedField(f); setSelectedModule(null); setSelectedUni(null); }} style={{ padding: "8px 18px", borderRadius: 20, border: selectedField === f ? "none" : "1.5px solid #E2E8F0", background: selectedField === f ? "linear-gradient(135deg,#2D6A4F,#52B788)" : "#fff", color: selectedField === f ? "#fff" : "#475569", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: F.body, transition: "all 0.15s" }}>{f}</button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── TABS: Universities / Fields ── */}
+        <div style={{ display: "flex", borderBottom: "2px solid #E2E8F0", marginBottom: 32 }}>
+          {(["universities","fields"] as const).map(t => (
+            <button key={t} onClick={() => { setActiveTab(t); setSelectedUni(null); setSelectedField(null); setSelectedModule(null); }} style={{ padding: "12px 24px", background: "none", border: "none", borderBottom: activeTab === t ? "2px solid #2D6A4F" : "2px solid transparent", marginBottom: -2, color: activeTab === t ? "#2D6A4F" : "#64748B", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: F.body, textTransform: "capitalize" }}>{t === "universities" ? "By University" : "By Field of Study"}</button>
+          ))}
+        </div>
+
+        {/* ── BREADCRUMB ── */}
+        {(selectedUni || selectedField || selectedModule) && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
+            <button onClick={() => { setSelectedUni(null); setSelectedField(null); setSelectedModule(null); }} style={{ background: "none", border: "none", color: "#2D6A4F", fontSize: 13, cursor: "pointer", fontWeight: 600, fontFamily: F.body, padding: 0 }}>Home</button>
+            {selectedUni && <><span style={{ color: "#94A3B8" }}>/</span><button onClick={() => { setSelectedModule(null); }} style={{ background: "none", border: "none", color: selectedModule ? "#2D6A4F" : "#0F172A", fontSize: 13, cursor: "pointer", fontWeight: 600, fontFamily: F.body, padding: 0 }}>{selectedUni}</button></>}
+            {selectedField && !selectedUni && <><span style={{ color: "#94A3B8" }}>/</span><button onClick={() => setSelectedModule(null)} style={{ background: "none", border: "none", color: selectedModule ? "#2D6A4F" : "#0F172A", fontSize: 13, cursor: "pointer", fontWeight: 600, fontFamily: F.body, padding: 0 }}>{selectedField}</button></>}
+            {selectedModule && <><span style={{ color: "#94A3B8" }}>/</span><span style={{ color: "#0F172A", fontSize: 13, fontWeight: 600, fontFamily: F.body }}>{selectedModule}</span></>}
+          </div>
+        )}
+
+        {/* ══ UNIVERSITIES TAB ══ */}
+        {activeTab === "universities" && !selectedUni && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 20 }}>
+            {UNIVERSITIES.map(u => (
+              <UniCard key={u.name} uni={u} onClick={() => setSelectedUni(u.name)} />
+            ))}
+          </div>
+        )}
+
+        {/* ── University selected: show its fields ── */}
+        {activeTab === "universities" && selectedUni && !selectedModule && (
+          <div>
+            <h2 style={{ fontFamily: F.display, fontSize: 26, fontWeight: 900, color: "#0F172A", margin: "0 0 6px" }}>{selectedUni}</h2>
+            <p style={{ color: "#64748B", fontSize: 14, margin: "0 0 28px" }}>Select a field of study to browse modules and materials</p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 16 }}>
+              {uni?.fields.map(field => (
+                <FieldCard key={field.name} name={field.name} modules={field.modules} onClick={() => setSelectedField(field.name)} onModuleClick={(mod) => { setSelectedField(field.name); setSelectedModule(mod); }} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ══ FIELDS TAB ══ */}
+        {activeTab === "fields" && !selectedField && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 16 }}>
+            {FIELDS_OF_STUDY.map(f => {
+              const count = SAMPLE_MATERIALS.filter(m => m.field === f).length;
+              return (
+                <div key={f} onClick={() => setSelectedField(f)} style={{ background: "#fff", borderRadius: 16, padding: "22px 20px", border: "1.5px solid #E8EAE3", cursor: "pointer", transition: "all 0.2s" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "#2D6A4F"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-3px)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "#E8EAE3"; (e.currentTarget as HTMLDivElement).style.transform = "none"; }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 12, background: "#D8F3DC", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+                    <svg width="20" height="20" fill="none" stroke="#2D6A4F" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                  </div>
+                  <h3 style={{ fontFamily: F.display, fontSize: 16, fontWeight: 700, color: "#0F172A", margin: "0 0 6px" }}>{f}</h3>
+                  <p style={{ color: "#64748B", fontSize: 13, margin: 0 }}>{count} material{count !== 1 ? "s" : ""} available</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Field selected (from fields tab): show modules ── */}
+        {activeTab === "fields" && selectedField && !selectedModule && (
+          <FieldModulesView field={selectedField} onModuleClick={setSelectedModule} />
+        )}
+
+        {/* ── MATERIALS VIEW ── */}
+        {selectedModule && (
+          <MaterialsView
+            freeMaterials={freeMaterials}
+            premiumMaterials={premiumMaterials}
+            selectedModule={selectedModule}
+            selectedMaterial={selectedMaterial}
+            setSelectedMaterial={setSelectedMaterial}
+            onPremium={() => setShowPremiumModal(true)}
+            onLogin={onLogin}
+          />
+        )}
+
+      </div>
+
+      {/* ── PREMIUM MODAL ── */}
+      {showPremiumModal && <PremiumModal onClose={() => setShowPremiumModal(false)} onSignUp={() => { setShowPremiumModal(false); onGetStarted(); }} />}
+
+      {/* ── FOOTER ── */}
+      <div style={{ background: "#1A2E2A", padding: "40px 32px", textAlign: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "center", marginBottom: 12 }}>
+          <div style={{ width: 30, height: 30, borderRadius: 8, background: "linear-gradient(135deg,#2D6A4F,#52B788)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontFamily: F.display }}>N</div>
+          <span style={{ fontFamily: F.display, fontSize: 18, fontWeight: 900, color: "#fff" }}>NoteFlow</span>
+        </div>
+        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, margin: 0 }}>Built for Botswana · NoteFlow 2026</p>
+      </div>
+    </div>
+  );
+}
+
+// ── Sub-components for PublicExplorePage ──────────────────────────────────────
+
+function UniCard({ uni, onClick }: { uni: typeof UNIVERSITIES[0]; onClick: () => void }) {
+  const [hov, setHov] = useState(false);
+  const matCount = SAMPLE_MATERIALS.filter(m => m.university === uni.name).length;
+  return (
+    <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} onClick={onClick}
+      style={{ background: "#fff", borderRadius: 18, padding: "24px", border: hov ? "1.5px solid #2D6A4F" : "1.5px solid #E8EAE3", cursor: "pointer", transition: "all 0.2s", transform: hov ? "translateY(-4px)" : "none", boxShadow: hov ? "0 8px 24px rgba(45,106,79,0.12)" : "0 2px 8px rgba(0,0,0,0.04)" }}>
+      <div style={{ width: 48, height: 48, borderRadius: 14, background: "linear-gradient(135deg,#D8F3DC,#B7E4C7)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+        <svg width="22" height="22" fill="none" stroke="#2D6A4F" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </div>
+      <h3 style={{ fontFamily: F.display, fontSize: 16, fontWeight: 700, color: "#0F172A", margin: "0 0 4px", lineHeight: 1.3 }}>{uni.name}</h3>
+      <p style={{ color: "#64748B", fontSize: 13, margin: "0 0 14px" }}>{uni.location} · {uni.fields.length} fields</p>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+        {uni.fields.slice(0, 2).map(f => <span key={f.name} style={{ background: "#EFF6FF", color: "#2563EB", fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>{f.name}</span>)}
+        {uni.fields.length > 2 && <span style={{ background: "#F1F5F9", color: "#64748B", fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>+{uni.fields.length - 2} more</span>}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #F1F5F9", paddingTop: 12 }}>
+        <span style={{ color: "#94A3B8", fontSize: 12 }}>{matCount} materials</span>
+        <span style={{ color: "#2D6A4F", fontSize: 13, fontWeight: 600 }}>Browse →</span>
+      </div>
+    </div>
+  );
+}
+
+function FieldCard({ name, modules, onClick, onModuleClick }: { name: string; modules: string[]; onClick: () => void; onModuleClick: (m: string) => void }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+      style={{ background: "#fff", borderRadius: 16, padding: "20px", border: hov ? "1.5px solid #2D6A4F" : "1.5px solid #E8EAE3", transition: "all 0.2s", boxShadow: hov ? "0 8px 24px rgba(45,106,79,0.1)" : "0 2px 8px rgba(0,0,0,0.04)" }}>
+      <h3 onClick={onClick} style={{ fontFamily: F.display, fontSize: 16, fontWeight: 700, color: "#0F172A", margin: "0 0 14px", cursor: "pointer" }}>{name}</h3>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {modules.map(mod => {
+          const count = SAMPLE_MATERIALS.filter(m => m.module === mod).length;
+          return (
+            <div key={mod} onClick={() => onModuleClick(mod)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderRadius: 8, background: "#F8FAFF", cursor: "pointer", transition: "background 0.15s" }}
+              onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = "#D8F3DC"}
+              onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "#F8FAFF"}>
+              <span style={{ fontSize: 13, color: "#0F172A", fontWeight: 500 }}>{mod}</span>
+              <span style={{ fontSize: 11, color: "#64748B" }}>{count > 0 ? `${count} file${count > 1 ? "s" : ""}` : "—"}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function FieldModulesView({ field, onModuleClick }: { field: string; onModuleClick: (m: string) => void }) {
+  const allModules = UNIVERSITIES.flatMap(u => u.fields.filter(f => f.name === field).flatMap(f => f.modules));
+  const unique = [...new Set(allModules)];
+  return (
+    <div>
+      <h2 style={{ fontFamily: F.display, fontSize: 24, fontWeight: 900, color: "#0F172A", margin: "0 0 6px" }}>{field}</h2>
+      <p style={{ color: "#64748B", fontSize: 14, margin: "0 0 24px" }}>Select a module to see available materials</p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 12 }}>
+        {unique.map(mod => {
+          const count = SAMPLE_MATERIALS.filter(m => m.module === mod).length;
+          return (
+            <div key={mod} onClick={() => onModuleClick(mod)} style={{ background: "#fff", borderRadius: 12, padding: "16px 18px", border: "1.5px solid #E8EAE3", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", transition: "all 0.15s" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "#2D6A4F"; (e.currentTarget as HTMLDivElement).style.background = "#F0FDF4"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "#E8EAE3"; (e.currentTarget as HTMLDivElement).style.background = "#fff"; }}>
+              <div>
+                <p style={{ margin: "0 0 3px", fontSize: 14, fontWeight: 600, color: "#0F172A" }}>{mod}</p>
+                <p style={{ margin: 0, fontSize: 12, color: "#94A3B8" }}>{count} material{count !== 1 ? "s" : ""}</p>
+              </div>
+              <svg width="16" height="16" fill="none" stroke="#2D6A4F" strokeWidth="2" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function MaterialsView({ freeMaterials, premiumMaterials, selectedModule, selectedMaterial, setSelectedMaterial, onPremium, onLogin }: {
+  freeMaterials: Material[]; premiumMaterials: Material[]; selectedModule: string;
+  selectedMaterial: Material | null; setSelectedMaterial: (m: Material | null) => void;
+  onPremium: () => void; onLogin: (r: Role) => void;
+}) {
+  const [tab, setTab] = useState<"free" | "premium">("free");
+
+  if (selectedMaterial) return (
+    <MaterialReader material={selectedMaterial} onBack={() => setSelectedMaterial(null)} onSignUp={() => onLogin("student")} />
+  );
+
+  const shown = tab === "free" ? freeMaterials : premiumMaterials;
+
+  return (
+    <div>
+      <h2 style={{ fontFamily: F.display, fontSize: 24, fontWeight: 900, color: "#0F172A", margin: "0 0 6px" }}>
+        {selectedModule}
+      </h2>
+      <p style={{ color: "#64748B", fontSize: 14, margin: "0 0 24px" }}>{freeMaterials.length} free · {premiumMaterials.length} premium materials</p>
+
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 0, background: "#F1F5F9", borderRadius: 12, padding: 4, marginBottom: 24, width: "fit-content" }}>
+        <button onClick={() => setTab("free")} style={{ padding: "8px 24px", borderRadius: 9, border: "none", background: tab === "free" ? "#fff" : "transparent", color: tab === "free" ? "#0F172A" : "#64748B", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: F.body, boxShadow: tab === "free" ? "0 1px 4px rgba(0,0,0,0.08)" : "none", transition: "all 0.15s" }}>
+          Free ({freeMaterials.length})
+        </button>
+        <button onClick={() => setTab("premium")} style={{ padding: "8px 24px", borderRadius: 9, border: "none", background: tab === "premium" ? "#fff" : "transparent", color: tab === "premium" ? "#D97706" : "#64748B", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: F.body, boxShadow: tab === "premium" ? "0 1px 4px rgba(0,0,0,0.08)" : "none", transition: "all 0.15s" }}>
+          Premium ({premiumMaterials.length})
+        </button>
+      </div>
+
+      {tab === "premium" && (
+        <div style={{ background: "linear-gradient(135deg,#FFF8E1,#FFF3CD)", border: "1px solid #FDE68A", borderRadius: 14, padding: "16px 20px", marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <p style={{ margin: "0 0 3px", fontWeight: 700, fontSize: 15, color: "#92400E" }}>Premium Materials</p>
+            <p style={{ margin: 0, fontSize: 13, color: "#B45309" }}>Subscribe to unlock all premium notes, past exam papers and textbooks.</p>
+          </div>
+          <button onClick={onPremium} style={{ background: "linear-gradient(135deg,#D97706,#F59E0B)", color: "#fff", border: "none", borderRadius: 10, padding: "10px 22px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: F.body }}>Subscribe Now</button>
+        </div>
+      )}
+
+      {shown.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "48px 0" }}>
+          <p style={{ color: "#94A3B8", fontSize: 15 }}>No {tab} materials for this module yet.</p>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 18 }}>
+          {shown.map(mat => (
+            <MaterialCard key={mat.id} material={mat} onOpen={() => { if (mat.premium) { onPremium(); } else { setSelectedMaterial(mat); } }} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MaterialCard({ material: m, onOpen }: { material: Material; onOpen: () => void }) {
+  const [hov, setHov] = useState(false);
+  const tc = TYPE_COLORS[m.type] || { bg: "#F1F5F9", color: "#64748B" };
+  return (
+    <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} onClick={onOpen}
+      style={{ background: "#fff", borderRadius: 16, padding: "20px", border: hov ? "1.5px solid #2D6A4F" : "1.5px solid #E8EAE3", cursor: "pointer", transition: "all 0.2s", transform: hov ? "translateY(-3px)" : "none", boxShadow: hov ? "0 8px 20px rgba(45,106,79,0.1)" : "0 2px 6px rgba(0,0,0,0.04)", position: "relative" }}>
+      {m.premium && <div style={{ position: "absolute", top: 14, right: 14, background: "#FFF8E1", color: "#B45309", fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 20 }}>Premium</div>}
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <span style={{ background: tc.bg, color: tc.color, fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>{m.type}</span>
+        <span style={{ color: "#94A3B8", fontSize: 12, alignSelf: "center" }}>{m.year}</span>
+      </div>
+      <h3 style={{ fontFamily: F.display, fontSize: 15, fontWeight: 700, color: "#0F172A", margin: "0 0 8px", lineHeight: 1.4, paddingRight: m.premium ? 52 : 0 }}>{m.title}</h3>
+      <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 14px", lineHeight: 1.5 }}>{m.preview.slice(0, 80)}...</p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #F1F5F9", paddingTop: 12 }}>
+        <div style={{ display: "flex", gap: 2 }}>
+          {[1,2,3,4,5].map(n => <span key={n} style={{ color: n <= Math.round(m.rating) ? "#F59E0B" : "#E2E8F0", fontSize: 12 }}>★</span>)}
+          <span style={{ color: "#94A3B8", fontSize: 12, marginLeft: 4 }}>{m.rating}</span>
+        </div>
+        <span style={{ color: "#94A3B8", fontSize: 12 }}>{m.pages} pages · {m.downloads.toLocaleString()} views</span>
+      </div>
+    </div>
+  );
+}
+
+function MaterialReader({ material: m, onBack, onSignUp }: { material: Material; onBack: () => void; onSignUp: () => void }) {
+  const tc = TYPE_COLORS[m.type] || { bg: "#F1F5F9", color: "#64748B" };
+  const freePages = Math.min(3, m.pages);
+  return (
+    <div>
+      <button onClick={onBack} style={{ background: "none", border: "none", color: "#2D6A4F", cursor: "pointer", fontSize: 14, fontFamily: F.body, fontWeight: 600, marginBottom: 20, padding: 0, display: "flex", alignItems: "center", gap: 6 }}>← Back to Materials</button>
+      <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #E8EAE3", overflow: "hidden" }}>
+        {/* Header */}
+        <div style={{ background: "linear-gradient(135deg,#1A2E2A,#2D6A4F)", padding: "28px 28px 24px" }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            <span style={{ background: "rgba(255,255,255,0.2)", color: "#fff", fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>{m.type}</span>
+            <span style={{ background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)", fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>{m.year}</span>
+          </div>
+          <h2 style={{ fontFamily: F.display, fontSize: 22, fontWeight: 900, color: "#fff", margin: "0 0 8px" }}>{m.title}</h2>
+          <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 13, margin: "0 0 10px" }}>{m.university} · {m.module}</p>
+          <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+            {[["Pages", String(m.pages)],["Views", m.downloads.toLocaleString()],["Rating", m.rating.toFixed(1)]].map(([l,v]) => (
+              <div key={l}><p style={{ margin: "0 0 2px", color: "rgba(255,255,255,0.5)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em" }}>{l}</p><p style={{ margin: 0, color: "#fff", fontWeight: 700, fontSize: 15, fontFamily: F.mono }}>{v}</p></div>
+            ))}
+          </div>
+        </div>
+        {/* Preview pages */}
+        <div style={{ padding: "24px 28px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em" }}>Document Preview — {freePages} of {m.pages} pages</h4>
+            <span style={{ background: "#D8F3DC", color: "#2D6A4F", fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>Free Preview</span>
+          </div>
+          {Array.from({ length: freePages }, (_, i) => (
+            <div key={i} style={{ background: "#F8FAFF", border: "1px solid #E8EAE3", borderRadius: 12, padding: "16px 20px", marginBottom: 12 }}>
+              <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase" }}>Page {i + 1}</p>
+              {i === 0 && <div style={{ background: "#EAF3FF", borderLeft: "3px solid #2563EB", borderRadius: "0 8px 8px 0", padding: "10px 14px", marginBottom: 10 }}><p style={{ margin: 0, fontSize: 13, color: "#1E3A8A", lineHeight: 1.6 }}><strong>Topics covered: </strong>{m.preview}</p></div>}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {[0.9, 0.75, 0.85, 0.6, 0.8].map((w, j) => <div key={j} style={{ height: 9, background: "#E2E8F0", borderRadius: 4, width: `${w * 100}%` }} />)}
+              </div>
+            </div>
+          ))}
+          {/* Lock wall */}
+          <div style={{ background: "linear-gradient(180deg,rgba(248,250,255,0) 0%,#F8FAFF 40%)", height: 60, marginTop: -60, position: "relative", zIndex: 1 }} />
+          <div style={{ background: "linear-gradient(135deg,#FFF8E1,#FFF3CD)", border: "1px solid #FDE68A", borderRadius: 16, padding: "28px 24px", textAlign: "center", marginTop: 8 }}>
+            <div style={{ width: 48, height: 48, borderRadius: 16, background: "linear-gradient(135deg,#D97706,#F59E0B)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+              <svg width="22" height="22" fill="none" stroke="#fff" strokeWidth="2.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </div>
+            <h3 style={{ fontFamily: F.display, fontSize: 20, fontWeight: 900, color: "#92400E", margin: "0 0 8px" }}>Full Document Locked</h3>
+            <p style={{ color: "#B45309", fontSize: 14, margin: "0 0 20px", lineHeight: 1.6 }}>Sign up for free to access full documents, or subscribe for premium materials.</p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+              <button onClick={onSignUp} style={{ background: "linear-gradient(135deg,#2D6A4F,#52B788)", color: "#fff", border: "none", borderRadius: 10, padding: "11px 24px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: F.body }}>Sign Up Free</button>
+              <button onClick={onSignUp} style={{ background: "linear-gradient(135deg,#D97706,#F59E0B)", color: "#fff", border: "none", borderRadius: 10, padding: "11px 24px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: F.body }}>Subscribe for Premium</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PremiumModal({ onClose, onSignUp }: { onClose: () => void; onSignUp: () => void }) {
+  const plans = [
+    { name: "Monthly", price: "P89", period: "/month", color: "#2D6A4F" },
+    { name: "Per Semester", price: "P199", period: "/6 months", saves: "Save 55%", color: "#7C3AED", popular: true },
+    { name: "Annual", price: "P299", period: "/year", saves: "Save 72%", color: "#059669" },
+  ];
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
+      <div style={{ background: "#fff", borderRadius: 24, width: "100%", maxWidth: 640, overflow: "hidden" }} onClick={e => e.stopPropagation()}>
+        <div style={{ background: "linear-gradient(135deg,#1A2E2A,#2D6A4F)", padding: "28px 28px 24px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div><p style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>NoteFlow</p><h2 style={{ fontFamily: F.display, fontSize: 24, fontWeight: 900, color: "#fff", margin: 0 }}>Unlock Premium Materials</h2></div>
+          <button onClick={onClose} style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 8, width: 34, height: 34, fontSize: 16, cursor: "pointer", color: "#fff" }}>x</button>
+        </div>
+        <div style={{ padding: "24px 28px 28px" }}>
+          <p style={{ color: "#64748B", fontSize: 14, margin: "0 0 24px", lineHeight: 1.6 }}>Get unlimited access to all premium notes, past exam papers, textbooks and more from every Botswana university.</p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 24 }}>
+            {plans.map(p => (
+              <div key={p.name} style={{ borderRadius: 16, padding: "20px 16px", border: p.popular ? `2px solid ${p.color}` : "1.5px solid #E2E8F0", position: "relative", textAlign: "center", boxShadow: p.popular ? `0 4px 20px ${p.color}22` : "none" }}>
+                {p.popular && <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: p.color, color: "#fff", borderRadius: 20, padding: "3px 12px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>Most Popular</div>}
+                {p.saves && <div style={{ background: "#D8F3DC", color: "#2D6A4F", borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 700, marginBottom: 8, display: "inline-block" }}>{p.saves}</div>}
+                <h4 style={{ fontFamily: F.display, fontSize: 15, color: "#0F172A", margin: "0 0 8px" }}>{p.name}</h4>
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 2, marginBottom: 16 }}>
+                  <span style={{ fontSize: 26, fontWeight: 800, color: p.color, fontFamily: F.mono }}>{p.price}</span>
+                  <span style={{ color: "#94A3B8", fontSize: 12 }}>{p.period}</span>
+                </div>
+                <button onClick={onSignUp} style={{ width: "100%", padding: "9px", borderRadius: 10, border: "none", background: `linear-gradient(135deg,${p.color},${p.color}cc)`, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: F.body }}>Subscribe</button>
+              </div>
+            ))}
+          </div>
+          <p style={{ textAlign: "center", color: "#94A3B8", fontSize: 12, margin: 0 }}>Secure payment · Cancel anytime · Instant access</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // LANDING PAGE
 // ═══════════════════════════════════════════════════════════════════════════════
-function LandingPage({ onChooseRole }: { onChooseRole: (r: Role) => void }) {
+function LandingPage({ onChooseRole, onBack }: { onChooseRole: (r: Role) => void; onBack?: () => void }) {
  const roles: { role: Role; icon: string; title: string; desc: string; gradient: string }[] = [
  { role: "student", icon: "", title: "Student", desc: "Browse tutors, book sessions & track your learning journey.", gradient: "linear-gradient(135deg,#2D6A4F,#52B788)" },
  { role: "tutor", icon: "‍", title: "Tutor", desc: "Manage bookings, earn money & grow your student base.", gradient: "linear-gradient(135deg,#F4A228,#E07B00)" },
@@ -174,7 +709,10 @@ function LandingPage({ onChooseRole }: { onChooseRole: (r: Role) => void }) {
  <RoleCard key={r.role} {...r} onClick={() => onChooseRole(r.role)} />
  ))}
  </div>
- <p style={{ color: "#4A5568", fontSize: 13, marginTop: 40 }}> Built for Botswana · NoteFlow 2024</p>
+ <div style={{ display: "flex", gap: 20, alignItems: "center", marginTop: 40 }}>
+ {onBack && <button onClick={onBack} style={{ background: "none", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "7px 16px", color: "#8892B0", fontSize: 13, cursor: "pointer", fontFamily: F.body }}>← Back to Explore</button>}
+ <p style={{ color: "#4A5568", fontSize: 13, margin: 0 }}>Built for Botswana · NoteFlow 2026</p>
+ </div>
  </div>
  );
 }
@@ -210,7 +748,7 @@ function LoginPage({ role, onLogin, onBack, tutors, students, setTutors, setStud
  const [university, setUniversity] = useState("");
  const [course, setCourse] = useState("");
  const [year, setYear] = useState("1st Year");
- const [subjects, setSubjects] = useState("");
+ const [modules, setModules] = useState("");
  const [rate, setRate] = useState("");
  const [bio, setBio] = useState("");
  const [qualifications, setQualifications] = useState("");
@@ -249,7 +787,7 @@ function LoginPage({ role, onLogin, onBack, tutors, students, setTutors, setStud
  onLogin({ id: newId, name, email, role: "student", avatar: initials });
  } else {
  const newId = Date.now();
- const tp: TutorProfile = { id: newId, userId: newId, name, avatar: initials, university, subjects: subjects.split(",").map(s => s.trim()).filter(Boolean), qualifications: qualifications.split(",").map(q => q.trim()).filter(Boolean), bio, rate: parseFloat(rate) || 80, available: true, rating: 0, reviewCount: 0, verified: "pending", earnings: 0, joined: new Date().toLocaleDateString("en-GB", { month: "short", year: "numeric" }) };
+ const tp: TutorProfile = { id: newId, userId: newId, name, avatar: initials, university, modules: modules.split(",").map(s => s.trim()).filter(Boolean), qualifications: qualifications.split(",").map(q => q.trim()).filter(Boolean), bio, rate: parseFloat(rate) || 80, available: true, rating: 0, reviewCount: 0, verified: "pending", earnings: 0, joined: new Date().toLocaleDateString("en-GB", { month: "short", year: "numeric" }) };
  setTutors(p => [...p, tp]);
  onLogin({ id: newId, name, email, role: "tutor", avatar: initials });
  }
@@ -306,7 +844,7 @@ function LoginPage({ role, onLogin, onBack, tutors, students, setTutors, setStud
  )}
  {role === "tutor" && (
  <>
- <div><label style={lbl}>Subjects (comma separated)</label><input value={subjects} onChange={e=>setSubjects(e.target.value)} placeholder="e.g. Data Structures, Algorithms" style={inp} /></div>
+ <div><label style={lbl}>Modules (comma separated)</label><input value={modules} onChange={e=>setModules(e.target.value)} placeholder="e.g. Data Structures, Algorithms" style={inp} /></div>
  <div><label style={lbl}>Qualifications (comma separated)</label><input value={qualifications} onChange={e=>setQualifications(e.target.value)} placeholder="e.g. BSc Computer Science, Dean's List" style={inp} /></div>
  <div><label style={lbl}>Hourly Rate (BWP)</label><input value={rate} onChange={e=>setRate(e.target.value)} placeholder="e.g. 80" style={inp} /></div>
  <div><label style={lbl}>Bio</label><textarea value={bio} onChange={e=>setBio(e.target.value)} rows={3} placeholder="Tell students about yourself..." style={{ ...inp, resize: "vertical" }} /></div>
@@ -454,7 +992,7 @@ function StudentHome({ user, bookings, tutors, messages, theme }: { user: User; 
  <h3 style={{ fontFamily: F.display, fontSize: 18, color: theme.text, margin: "0 0 16px" }}>Recent Bookings</h3>
  {bookings.length === 0 ? <EmptyState icon="" text="No bookings yet — find a tutor to get started!" /> : bookings.slice(0, 4).map(b => (
  <div key={b.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${theme.border}` }}>
- <div><p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 600, color: theme.text }}>{b.tutorName}</p><p style={{ margin: 0, fontSize: 12, color: theme.textSub }}>{b.subject} · {b.date}</p></div>
+ <div><p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 600, color: theme.text }}>{b.tutorName}</p><p style={{ margin: 0, fontSize: 12, color: theme.textSub }}>{b.module} · {b.date}</p></div>
  <StatusBadge status={b.status} />
  </div>
  ))}
@@ -466,7 +1004,7 @@ function StudentHome({ user, bookings, tutors, messages, theme }: { user: User; 
  <Avatar initials={t.avatar} size={36} gradient={theme.gradient} />
  <div style={{ flex: 1 }}>
  <p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 600, color: theme.text }}>{t.name}</p>
- <p style={{ margin: 0, fontSize: 12, color: theme.textSub }}>{t.subjects.slice(0, 2).join(", ")}</p>
+ <p style={{ margin: 0, fontSize: 12, color: theme.textSub }}>{t.modules.slice(0, 2).join(", ")}</p>
  </div>
  <StarRow rating={t.rating || 0} />
  </div>
@@ -482,16 +1020,16 @@ function StudentTutors({ user, tutors, bookings, setBookings, setPayments, revie
  const [search, setSearch] = useState("");
  const [selected, setSelected] = useState<TutorProfile | null>(null);
  const [bookModal, setBookModal] = useState(false);
- const [date, setDate] = useState(""); const [time, setTime] = useState(""); const [subject, setSubject] = useState(""); const [note, setNote] = useState("");
+ const [date, setDate] = useState(""); const [time, setTime] = useState(""); const [module, setModule] = useState(""); const [note, setNote] = useState("");
  const [booked, setBooked] = useState(false);
 
  const approved = tutors.filter(t => t.verified === "approved");
- const filtered = approved.filter(t => !search || t.name.toLowerCase().includes(search.toLowerCase()) || t.subjects.some(s => s.toLowerCase().includes(search.toLowerCase())));
+ const filtered = approved.filter(t => !search || t.name.toLowerCase().includes(search.toLowerCase()) || t.modules.some(s => s.toLowerCase().includes(search.toLowerCase())));
  const tutorReviews = selected ? reviews.filter(r => r.tutorId === selected.id) : [];
 
  const doBook = () => {
- if (!selected || !date || !time || !subject) { alert("Please fill all fields."); return; }
- const nb: Booking = { id: Date.now(), studentId: user.id, tutorId: selected.id, studentName: user.name, tutorName: selected.name, subject, date, time, status: "pending", note, amount: selected.rate, createdAt: new Date().toISOString() };
+ if (!selected || !date || !time || !module) { alert("Please fill all fields."); return; }
+ const nb: Booking = { id: Date.now(), studentId: user.id, tutorId: selected.id, studentName: user.name, tutorName: selected.name, module, date, time, status: "pending", note, amount: selected.rate, createdAt: new Date().toISOString() };
  setBookings(p => [...p, nb]);
  setPayments(p => [...p, { id: Date.now()+1, studentId: user.id, tutorId: selected.id, bookingId: nb.id, studentName: user.name, tutorName: selected.name, amount: selected.rate, status: "pending", date: new Date().toLocaleDateString("en-GB"), method: "Card" }]);
  setBooked(true);
@@ -518,7 +1056,7 @@ function StudentTutors({ user, tutors, bookings, setBookings, setPayments, revie
  </div>
  <div style={{ padding: "28px" }}>
  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20, marginBottom: 24 }}>
- <div><h4 style={{ color: theme.textMuted, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 10px" }}>Subjects</h4>{selected.subjects.map(s => <span key={s} style={{ display: "inline-block", background: theme.accentLight, color: theme.accent, fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 20, marginRight: 6, marginBottom: 6 }}>{s}</span>)}</div>
+ <div><h4 style={{ color: theme.textMuted, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 10px" }}>Modules</h4>{selected.modules.map(s => <span key={s} style={{ display: "inline-block", background: theme.accentLight, color: theme.accent, fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 20, marginRight: 6, marginBottom: 6 }}>{s}</span>)}</div>
  <div><h4 style={{ color: theme.textMuted, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 10px" }}>Qualifications</h4>{selected.qualifications.map(q => <p key={q} style={{ margin: "0 0 4px", fontSize: 13, color: theme.text }}> {q}</p>)}</div>
  <div><h4 style={{ color: theme.textMuted, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 10px" }}>About</h4><p style={{ margin: 0, fontSize: 13, color: theme.textSub, lineHeight: 1.6 }}>{selected.bio || "No bio provided."}</p></div>
  </div>
@@ -533,7 +1071,7 @@ function StudentTutors({ user, tutors, bookings, setBookings, setPayments, revie
  <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: theme.textSub, marginBottom: 6, textTransform: "uppercase" }}>Date</label><input type="date" value={date} onChange={e => setDate(e.target.value)} style={inp} /></div>
  <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: theme.textSub, marginBottom: 6, textTransform: "uppercase" }}>Time</label><input type="time" value={time} onChange={e => setTime(e.target.value)} style={inp} /></div>
  </div>
- <div style={{ marginBottom: 14 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: theme.textSub, marginBottom: 6, textTransform: "uppercase" }}>Subject</label><input value={subject} onChange={e => setSubject(e.target.value)} placeholder="e.g. Binary Trees, SQL Joins" style={inp} /></div>
+ <div style={{ marginBottom: 14 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: theme.textSub, marginBottom: 6, textTransform: "uppercase" }}>Module</label><input value={module} onChange={e => setModule(e.target.value)} placeholder="e.g. Binary Trees, SQL Joins" style={inp} /></div>
  <div style={{ marginBottom: 18 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: theme.textSub, marginBottom: 6, textTransform: "uppercase" }}>Notes (optional)</label><textarea value={note} onChange={e => setNote(e.target.value)} rows={2} style={{ ...inp, resize: "vertical" }} /></div>
  <div style={{ display: "flex", gap: 10 }}>
  <button onClick={doBook} style={{ background: theme.gradient, color: "#fff", border: "none", borderRadius: 10, padding: "11px 24px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: F.body }}>Confirm & Pay P{selected.rate}</button>
@@ -574,7 +1112,7 @@ function StudentTutors({ user, tutors, bookings, setBookings, setPayments, revie
  <PageHeader title="Find a Tutor" sub={`${filtered.length} approved tutors available`} theme={th} />
  <div style={{ background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 12, padding: "0 16px", display: "flex", alignItems: "center", marginBottom: 24 }}>
  <span style={{ fontSize: 16, marginRight: 8 }}></span>
- <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or subject..." style={{ flex: 1, border: "none", outline: "none", fontSize: 14, color: theme.text, background: "transparent", fontFamily: F.body, padding: "13px 0" }} />
+ <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or module..." style={{ flex: 1, border: "none", outline: "none", fontSize: 14, color: theme.text, background: "transparent", fontFamily: F.body, padding: "13px 0" }} />
  </div>
  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 20 }}>
  {filtered.length === 0 ? <div style={{ gridColumn: "1/-1" }}><EmptyState icon="‍" text="No approved tutors match your search" /></div> : filtered.map(t => (
@@ -600,8 +1138,8 @@ function TutorCard({ tutor, theme, onClick, reviews }: { tutor: TutorProfile; th
  <span style={{ background: tutor.available ? "#D8F3DC" : "#FEE2E2", color: tutor.available ? "#2D6A4F" : "#DC2626", fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 20 }}>{tutor.available ? "Available" : "Busy"}</span>
  </div>
  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
- {tutor.subjects.slice(0, 3).map(s => <span key={s} style={{ background: theme.accentLight, color: theme.accent, fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>{s}</span>)}
- {tutor.subjects.length > 3 && <span style={{ background: theme.border, color: theme.textMuted, fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>+{tutor.subjects.length - 3}</span>}
+ {tutor.modules.slice(0, 3).map(s => <span key={s} style={{ background: theme.accentLight, color: theme.accent, fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>{s}</span>)}
+ {tutor.modules.length > 3 && <span style={{ background: theme.border, color: theme.textMuted, fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>+{tutor.modules.length - 3}</span>}
  </div>
  <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
  <p style={{ margin: 0, fontSize: 13, color: theme.textSub, lineHeight: 1.4 }}>{tutor.bio?.slice(0, 60)}...</p>
@@ -624,7 +1162,7 @@ function StudentBookings({ user, bookings, setBookings, theme }: { user: User; b
  <Avatar initials={b.tutorName.split("").map(w=>w[0]).join("").slice(0,2)} size={44} gradient={theme.gradient} />
  <div>
  <p style={{ margin: "0 0 2px", fontSize: 15, fontWeight: 600, color: theme.text }}>{b.tutorName}</p>
- <p style={{ margin: "0 0 2px", fontSize: 13, color: theme.textSub }}>{b.subject}</p>
+ <p style={{ margin: "0 0 2px", fontSize: 13, color: theme.textSub }}>{b.module}</p>
  <p style={{ margin: 0, fontSize: 12, color: theme.textMuted }}> {b.date} at {b.time}</p>
  </div>
  </div>
@@ -678,7 +1216,7 @@ function StudentMessages({ user, messages, setMessages, tutors, theme }: { user:
  <Avatar initials={t.avatar} size={36} gradient={theme.gradient} />
  <div style={{ flex: 1, overflow: "hidden" }}>
  <p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 600, color: theme.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</p>
- <p style={{ margin: 0, fontSize: 11, color: theme.textMuted }}>{t.subjects[0]}</p>
+ <p style={{ margin: 0, fontSize: 11, color: theme.textMuted }}>{t.modules[0]}</p>
  </div>
  </div>
  ))}
@@ -891,7 +1429,7 @@ function TutorHome({ profile, bookings, messages, reviews, theme }: { profile: T
  {bookings.filter(b => b.status === "pending").slice(0, 4).length === 0 ? <EmptyState icon="" text="No pending requests" /> : bookings.filter(b => b.status === "pending").slice(0, 4).map(b => (
  <div key={b.id} style={{ padding: "10px 0", borderBottom: `1px solid ${theme.border}` }}>
  <p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 600, color: theme.text }}>{b.studentName}</p>
- <p style={{ margin: 0, fontSize: 12, color: theme.textSub }}>{b.subject} · {b.date}</p>
+ <p style={{ margin: 0, fontSize: 12, color: theme.textSub }}>{b.module} · {b.date}</p>
  </div>
  ))}
  </div>
@@ -929,7 +1467,7 @@ function TutorRequests({ profile, bookings, setBookings, theme }: { profile: Tut
  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
  <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
  <Avatar initials={b.studentName.split("").map(w=>w[0]).join("").slice(0,2)} size={44} gradient={theme.gradient} />
- <div><p style={{ margin: "0 0 2px", fontSize: 15, fontWeight: 600, color: theme.text }}>{b.studentName}</p><p style={{ margin: "0 0 2px", fontSize: 13, color: theme.textSub }}>{b.subject}</p><p style={{ margin: 0, fontSize: 12, color: theme.textMuted }}> {b.date} at {b.time}</p></div>
+ <div><p style={{ margin: "0 0 2px", fontSize: 15, fontWeight: 600, color: theme.text }}>{b.studentName}</p><p style={{ margin: "0 0 2px", fontSize: 13, color: theme.textSub }}>{b.module}</p><p style={{ margin: 0, fontSize: 12, color: theme.textMuted }}> {b.date} at {b.time}</p></div>
  </div>
  <p style={{ fontFamily: F.mono, fontSize: 20, fontWeight: 700, color: theme.accent, margin: 0 }}>P{b.amount}</p>
  </div>
@@ -949,7 +1487,7 @@ function TutorRequests({ profile, bookings, setBookings, theme }: { profile: Tut
  <div key={b.id} style={{ background: theme.card, borderRadius: 14, padding: "16px 20px", border: `1px solid ${theme.border}`, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
  <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
  <Avatar initials={b.studentName.split("").map(w=>w[0]).join("").slice(0,2)} size={36} gradient={theme.gradient} />
- <div><p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 600, color: theme.text }}>{b.studentName}</p><p style={{ margin: 0, fontSize: 12, color: theme.textSub }}>{b.subject} · {b.date}</p></div>
+ <div><p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 600, color: theme.text }}>{b.studentName}</p><p style={{ margin: 0, fontSize: 12, color: theme.textSub }}>{b.module} · {b.date}</p></div>
  </div>
  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
  <StatusBadge status={b.status} />
@@ -990,7 +1528,7 @@ function TutorSchedule({ profile, bookings, setTutors, theme }: { profile: Tutor
  <div key={b.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0", borderBottom: `1px solid ${theme.border}` }}>
  <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
  <div style={{ width: 44, height: 44, borderRadius: 12, background: theme.accentLight, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}></div>
- <div><p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 600, color: theme.text }}>{b.studentName}</p><p style={{ margin: 0, fontSize: 12, color: theme.textSub }}>{b.subject}</p></div>
+ <div><p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 600, color: theme.text }}>{b.studentName}</p><p style={{ margin: 0, fontSize: 12, color: theme.textSub }}>{b.module}</p></div>
  </div>
  <div style={{ textAlign: "right" }}>
  <p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 600, color: theme.accent }}>{b.date}</p>
@@ -1099,7 +1637,7 @@ function TutorEarnings({ profile, bookings, payments, theme }: { profile: TutorP
  {completed.length === 0 ? <EmptyState icon="" text="No completed sessions yet" /> : completed.map(b => (
  <div key={b.id} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "14px 20px", borderBottom: `1px solid ${theme.border}`, alignItems: "center" }}>
  <span style={{ fontSize: 13, color: theme.text, fontWeight: 500 }}>{b.studentName}</span>
- <span style={{ fontSize: 12, color: theme.textSub }}>{b.subject} · {b.date}</span>
+ <span style={{ fontSize: 12, color: theme.textSub }}>{b.module} · {b.date}</span>
  <span style={{ fontSize: 16, color: theme.accent, fontFamily: F.mono, fontWeight: 700 }}>+P{b.amount}</span>
  </div>
  ))}
@@ -1156,11 +1694,11 @@ function TutorReviewsTab({ reviews, theme }: { reviews: Review[]; theme: AnyThem
 function TutorProfileTab({ profile, setTutors, theme }: { profile: TutorProfile; setTutors: React.Dispatch<React.SetStateAction<TutorProfile[]>>; theme: AnyTheme }) {
  const [bio, setBio] = useState(profile.bio);
  const [rate, setRate] = useState(String(profile.rate));
- const [subjects, setSubjects] = useState(profile.subjects.join(", "));
+ const [modules, setModules] = useState(profile.modules.join(", "));
  const [qualifications, setQualifications] = useState(profile.qualifications.join(", "));
  const [saved, setSaved] = useState(false);
  const save = () => {
- setTutors(p => p.map(t => t.id === profile.id ? { ...t, bio, rate: parseFloat(rate) || t.rate, subjects: subjects.split(",").map(s => s.trim()).filter(Boolean), qualifications: qualifications.split(",").map(q => q.trim()).filter(Boolean) } : t));
+ setTutors(p => p.map(t => t.id === profile.id ? { ...t, bio, rate: parseFloat(rate) || t.rate, modules: modules.split(",").map(s => s.trim()).filter(Boolean), qualifications: qualifications.split(",").map(q => q.trim()).filter(Boolean) } : t));
  setSaved(true); setTimeout(() => setSaved(false), 2000);
  };
  const inp: React.CSSProperties = { width: "100%", padding: "11px 14px", borderRadius: 10, border: `1px solid ${theme.border}`, background: theme.bg, color: theme.text, fontSize: 14, fontFamily: F.body, outline: "none", boxSizing: "border-box" };
@@ -1185,7 +1723,7 @@ function TutorProfileTab({ profile, setTutors, theme }: { profile: TutorProfile;
  </div>
  <div style={{ background: theme.card, borderRadius: 16, padding: 24, border: `1px solid ${theme.border}` }}>
  <div style={{ marginBottom: 14 }}><label style={lbl}>Hourly Rate (BWP)</label><input value={rate} onChange={e => setRate(e.target.value)} style={inp} /></div>
- <div><label style={lbl}>Subjects (comma separated)</label><input value={subjects} onChange={e => setSubjects(e.target.value)} style={inp} /></div>
+ <div><label style={lbl}>Modules (comma separated)</label><input value={modules} onChange={e => setModules(e.target.value)} style={inp} /></div>
  </div>
  <div style={{ background: theme.card, borderRadius: 16, padding: 24, border: `1px solid ${theme.border}`, gridColumn: "1/-1" }}>
  <label style={lbl}>Qualifications (comma separated)</label>
@@ -1268,7 +1806,7 @@ function AdminOverview({ tutors, students, bookings, reviews, payments, theme }:
  <h3 style={{ fontFamily: F.display, fontSize: 18, color: theme.text, margin: "0 0 16px" }}>Recent Bookings</h3>
  {bookings.slice(-5).reverse().map(b => (
  <div key={b.id} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${theme.border}` }}>
- <div><p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 600, color: theme.text }}>{b.studentName} → {b.tutorName}</p><p style={{ margin: 0, fontSize: 12, color: theme.textSub }}>{b.subject} · {b.date}</p></div>
+ <div><p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 600, color: theme.text }}>{b.studentName} → {b.tutorName}</p><p style={{ margin: 0, fontSize: 12, color: theme.textSub }}>{b.module} · {b.date}</p></div>
  <StatusBadge status={b.status} />
  </div>
  ))}
@@ -1376,7 +1914,7 @@ function AdminVerification({ tutors, setTutors, theme }: { tutors: TutorProfile[
  <h3 style={{ fontFamily: F.display, fontSize: 18, color: theme.text, margin: "0 0 4px" }}>{t.name}</h3>
  <p style={{ color: theme.textSub, fontSize: 13, margin: "0 0 8px" }}> {t.university} · P{t.rate}/hr</p>
  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
- {t.subjects.map(s => <span key={s} style={{ background: "#EFF6FF", color: theme.accent, fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>{s}</span>)}
+ {t.modules.map(s => <span key={s} style={{ background: "#EFF6FF", color: theme.accent, fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>{s}</span>)}
  </div>
  {t.qualifications.length > 0 && <p style={{ color: theme.textSub, fontSize: 13, margin: "0 0 6px" }}> {t.qualifications.join(" · ")}</p>}
  {t.bio && <p style={{ color: theme.textSub, fontSize: 13, margin: 0, lineHeight: 1.5 }}>{t.bio}</p>}
