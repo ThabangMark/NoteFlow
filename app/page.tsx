@@ -1,5 +1,11 @@
 "use client";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 // ─── FONTS ───────────────────────────────────────────────────────────────────
 const FontLink = () => (
@@ -11,34 +17,40 @@ type Role = "admin" | "student" | "tutor";
 type BookingStatus = "pending" | "confirmed" | "completed" | "cancelled";
 type VerifStatus = "pending" | "approved" | "rejected";
 
-interface User { id: number; name: string; email: string; role: Role; avatar: string; }
+interface User { id: string; name: string; email: string; role: Role; avatar: string; }
 interface TutorProfile {
- id: number; userId: number; name: string; avatar: string; university: string;
+ id: string; userId: string; name: string; avatar: string; university: string;
  modules: string[]; qualifications: string[]; bio: string; rate: number;
  available: boolean; rating: number; reviewCount: number; verified: VerifStatus;
- earnings: number; joined: string;
+ earnings: number; joined: string; email?: string;
 }
 interface StudentProfile {
- id: number; userId: number; name: string; avatar: string; university: string;
+ id: string; userId: string; name: string; avatar: string; university: string;
  course: string; year: string; joined: string; plan: "free" | "premium";
+ referralCode?: string; email?: string;
 }
 interface Booking {
- id: number; studentId: number; tutorId: number; studentName: string; tutorName: string;
+ id: number; studentId: string; tutorId: string; studentName: string; tutorName: string;
  module: string; date: string; time: string; status: BookingStatus;
  note: string; amount: number; createdAt: string;
 }
 interface Message {
- id: number; senderId: number; receiverId: number; senderName: string;
+ id: number; senderId: string; receiverId: string; senderName: string;
  text: string; timestamp: string; read: boolean;
 }
 interface Review {
- id: number; studentId: number; tutorId: number; studentName: string;
+ id: number; studentId: string; tutorId: string; studentName: string;
  tutorName: string; rating: number; comment: string; date: string; flagged: boolean; hidden: boolean;
 }
 interface Payment {
- id: number; studentId: number; tutorId: number; bookingId: number;
+ id: number; studentId: string; tutorId: string; bookingId: number;
  studentName: string; tutorName: string; amount: number; status: "completed" | "pending" | "refunded";
  date: string; method: string;
+}
+
+interface MaterialRating {
+  id: number; materialId: number; studentId: string; studentName: string;
+  rating: number; comment: string; date: string;
 }
 
 // ─── THEME ───────────────────────────────────────────────────────────────────
@@ -67,6 +79,19 @@ const T = {
 };
 
 const F = { display: "'Fraunces',serif", body: "'DM Sans',sans-serif", mono: "'JetBrains Mono',monospace" };
+
+const MobileStyles = () => (
+  <style>{`
+    @media (max-width: 768px) {
+      .nf-sidebar { transform: translateX(-100%); position: fixed !important; z-index: 200; transition: transform 0.25s; }
+      .nf-sidebar.open { transform: translateX(0); }
+      .nf-main { padding: 20px 16px 60px !important; }
+      .nf-burger { display: flex !important; }
+      .nf-overlay { display: block !important; }
+    }
+    @media (min-width: 769px) { .nf-burger { display: none !important; } .nf-overlay { display: none !important; } }
+  `}</style>
+);
 
 // ─── SHARED UTILITIES ────────────────────────────────────────────────────────
 const Avatar = ({ initials, size = 40, gradient = "linear-gradient(135deg,#2D6A4F,#52B788)" }: { initials: string; size?: number; gradient?: string }) => (
@@ -97,15 +122,15 @@ const StarPicker = ({ value, onChange }: { value: number; onChange: (n: number) 
 };
 
 // ─── INITIAL STATE (empty — admin adds users, tutors register, students sign up) ─
-const ADMIN_USER: User = { id: 0, name: "Mark", email: "mark@noteflow.bw", role: "admin", avatar: "MK" };
+const ADMIN_USER: User = { id: "admin-mark-00000000", name: "Mark", email: "mark@noteflow.bw", role: "admin", avatar: "MK" };
 
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
 export default function App() {
  const [screen, setScreen] = useState<"explore" | "landing" | "login" | "dashboard">("explore");
  const [loginRole, setLoginRole] = useState<Role>("student");
  const [currentUser, setCurrentUser] = useState<User | null>(null);
+ const [loading, setLoading] = useState(true);
 
- // Global state
  const [tutors, setTutors] = useState<TutorProfile[]>([]);
  const [students, setStudents] = useState<StudentProfile[]>([]);
  const [bookings, setBookings] = useState<Booking[]>([]);
@@ -113,8 +138,58 @@ export default function App() {
  const [reviews, setReviews] = useState<Review[]>([]);
  const [payments, setPayments] = useState<Payment[]>([]);
 
+ const loadData = useCallback(async () => {
+   try {
+     const [{ data: td }, { data: sd }, { data: bd }, { data: md }, { data: rd }, { data: pd }] = await Promise.all([
+       supabase.from("tutor_profiles").select("*, profiles(id,name,avatar,university,created_at)"),
+       supabase.from("student_profiles").select("*, profiles(id,name,avatar,university,created_at)"),
+       supabase.from("bookings").select("*"),
+       supabase.from("messages").select("*").order("created_at"),
+       supabase.from("reviews").select("*"),
+       supabase.from("payments").select("*"),
+     ]);
+     if (td) setTutors(td.map((t: any) => ({ id: t.id, userId: t.id, name: t.profiles?.name||"", avatar: t.profiles?.avatar||"??", university: t.profiles?.university||"", modules: t.modules||[], qualifications: t.qualifications||[], bio: t.bio||"", rate: t.rate||80, available: t.available??true, rating: t.rating||0, reviewCount: t.review_count||0, verified: t.verified||"pending", earnings: t.earnings||0, joined: t.profiles?.created_at ? new Date(t.profiles.created_at).toLocaleDateString("en-GB",{month:"short",year:"numeric"}) : "" })));
+     if (sd) setStudents(sd.map((s: any) => ({ id: s.id, userId: s.id, name: s.profiles?.name||"", avatar: s.profiles?.avatar||"??", university: s.profiles?.university||"", course: s.course||"", year: s.year||"1st Year", plan: s.plan||"free", referralCode: s.referral_code||"", joined: s.profiles?.created_at ? new Date(s.profiles.created_at).toLocaleDateString("en-GB",{month:"short",year:"numeric"}) : "" })));
+     if (bd) setBookings(bd.map((b: any) => ({ id: b.id, studentId: b.student_id, tutorId: b.tutor_id, studentName: b.student_name, tutorName: b.tutor_name, module: b.module, date: b.date, time: b.time, status: b.status, note: b.note||"", amount: b.amount, createdAt: b.created_at })));
+     if (md) setMessages(md.map((m: any) => ({ id: m.id, senderId: m.sender_id, receiverId: m.receiver_id, senderName: m.sender_name, text: m.text, read: m.read, timestamp: new Date(m.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}) })));
+     if (rd) setReviews(rd.map((r: any) => ({ id: r.id, studentId: r.student_id, tutorId: r.tutor_id, studentName: r.student_name, tutorName: r.tutor_name, rating: r.rating, comment: r.comment, date: r.created_at, flagged: r.flagged, hidden: r.hidden })));
+     if (pd) setPayments(pd.map((p: any) => ({ id: p.id, studentId: p.student_id, tutorId: p.tutor_id, bookingId: p.booking_id, studentName: p.student_name, tutorName: p.tutor_name, amount: p.amount, status: p.status, date: new Date(p.created_at).toLocaleDateString("en-GB"), method: p.method||"Card" })));
+   } catch (err) { console.error("Data load error:", err); }
+ }, []);
+
+ useEffect(() => {
+   const init = async () => {
+     const { data: { session } } = await supabase.auth.getSession();
+     if (session?.user) {
+       const { data: profile } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
+       if (profile) { setCurrentUser({ id: profile.id, name: profile.name, email: session.user.email||"", role: profile.role as Role, avatar: profile.avatar||profile.name.slice(0,2).toUpperCase() }); setScreen("dashboard"); }
+     }
+     setLoading(false);
+   };
+   init();
+   const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+     if (event === "SIGNED_OUT") { setCurrentUser(null); setScreen("explore"); }
+   });
+   return () => subscription.unsubscribe();
+ }, []);
+
+ useEffect(() => { if (currentUser) loadData(); }, [currentUser, loadData]);
+
  const handleLogin = (user: User) => { setCurrentUser(user); setScreen("dashboard"); };
- const handleLogout = () => { setCurrentUser(null); setScreen("explore"); };
+ const handleLogout = async () => {
+   await supabase.auth.signOut();
+   setCurrentUser(null); setTutors([]); setStudents([]); setBookings([]); setMessages([]); setReviews([]); setPayments([]);
+   setScreen("explore");
+ };
+
+ if (loading) return (
+   <div style={{ minHeight:"100vh", background:"#0D0F1A", display:"flex", alignItems:"center", justifyContent:"center" }}>
+     <div style={{ textAlign:"center" }}>
+       <div style={{ width:48, height:48, borderRadius:14, background:"linear-gradient(135deg,#1E3A8A,#3B82F6)", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, fontSize:22, fontFamily:F.display, margin:"0 auto 16px" }}>N</div>
+       <p style={{ color:"#8892B0", fontFamily:F.body, fontSize:14 }}>Loading NoteFlow...</p>
+     </div>
+   </div>
+ );
 
  if (screen === "explore") return (
  <>
@@ -755,43 +830,52 @@ function LoginPage({ role, onLogin, onBack, tutors, students, setTutors, setStud
  const [err, setErr] = useState("");
 
  const themeColor = role === "student" ? "#2D6A4F" : role === "tutor" ? "#F4A228" : "#3B82F6";
- const roleIcon = role === "student" ? "" : role === "tutor" ? "‍" : "️";
+ const roleIcon: string = role === "student" ? "S" : role === "tutor" ? "T" : "A";
 
- const handleSubmit = () => {
- setErr("");
- if (role === "admin") {
- if (email.toLowerCase() === "mark" && password === "mark12345") {
- onLogin(ADMIN_USER);
- } else { setErr("Invalid admin credentials."); }
- return;
- }
- if (mode === "login") {
- // find existing user
- if (role === "student") {
- const s = students.find(s => s.name.toLowerCase() === email.toLowerCase());
- if (!s) { setErr("Account not found. Please register first."); return; }
- onLogin({ id: s.userId, name: s.name, email: s.name + "@student.bw", role: "student", avatar: s.avatar });
- } else {
- const t = tutors.find(t => t.name.toLowerCase() === email.toLowerCase());
- if (!t) { setErr("Account not found. Please register first."); return; }
- onLogin({ id: t.userId, name: t.name, email: t.name + "@tutor.bw", role: "tutor", avatar: t.avatar });
- }
- } else {
- // register
- if (!name || !email || !password) { setErr("Please fill all required fields."); return; }
- const initials = name.split("").map(w => w[0]).join("").toUpperCase().slice(0, 2);
- if (role === "student") {
- const newId = Date.now();
- const sp: StudentProfile = { id: newId, userId: newId, name, avatar: initials, university, course, year, joined: new Date().toLocaleDateString("en-GB", { month: "short", year: "numeric" }), plan: "free" };
- setStudents(p => [...p, sp]);
- onLogin({ id: newId, name, email, role: "student", avatar: initials });
- } else {
- const newId = Date.now();
- const tp: TutorProfile = { id: newId, userId: newId, name, avatar: initials, university, modules: modules.split(",").map(s => s.trim()).filter(Boolean), qualifications: qualifications.split(",").map(q => q.trim()).filter(Boolean), bio, rate: parseFloat(rate) || 80, available: true, rating: 0, reviewCount: 0, verified: "pending", earnings: 0, joined: new Date().toLocaleDateString("en-GB", { month: "short", year: "numeric" }) };
- setTutors(p => [...p, tp]);
- onLogin({ id: newId, name, email, role: "tutor", avatar: initials });
- }
- }
+ const [submitting, setSubmitting] = useState(false);
+ const [referralCode, setReferralCode] = useState("");
+
+ const handleSubmit = async () => {
+  setErr(""); setSubmitting(true);
+  try {
+   if (role === "admin") {
+     if (email.toLowerCase() === "mark" && password === "mark12345") { onLogin(ADMIN_USER); }
+     else { setErr("Invalid admin credentials."); }
+     return;
+   }
+   if (mode === "login") {
+     if (!email || !password) { setErr("Please enter your email and password."); return; }
+     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+     if (error) { setErr(error.message); return; }
+     if (data.user) {
+       const { data: profile } = await supabase.from("profiles").select("*").eq("id", data.user.id).single();
+       if (profile) onLogin({ id: profile.id, name: profile.name, email: data.user.email||"", role: profile.role as Role, avatar: profile.avatar||profile.name.slice(0,2).toUpperCase() });
+       else setErr("Profile not found. Please register.");
+     }
+     return;
+   }
+   if (!name || !email || !password) { setErr("Please fill all required fields."); return; }
+   if (password.length < 6) { setErr("Password must be at least 6 characters."); return; }
+   const initials = name.split(" ").map((w:string) => w[0]).join("").toUpperCase().slice(0, 2);
+   const { data: authData, error: authErr } = await supabase.auth.signUp({ email, password });
+   if (authErr) { setErr(authErr.message); return; }
+   if (!authData.user) { setErr("Registration failed. Please try again."); return; }
+   const uid = authData.user.id;
+   const { error: profErr } = await supabase.from("profiles").insert({ id: uid, name, role, avatar: initials, university });
+   if (profErr) { setErr(profErr.message); return; }
+   if (role === "student") {
+     await supabase.from("student_profiles").insert({ id: uid, course, year, plan: "free" });
+     if (referralCode.trim()) {
+       const { data: ref } = await supabase.from("student_profiles").select("id").eq("referral_code", referralCode.trim()).single();
+       if (ref) await supabase.from("referrals").insert({ referrer_id: ref.id, referred_id: uid });
+     }
+   } else {
+     await supabase.from("tutor_profiles").insert({ id: uid, modules: modules.split(",").map((s:string)=>s.trim()).filter(Boolean), qualifications: qualifications.split(",").map((q:string)=>q.trim()).filter(Boolean), bio, rate: parseFloat(rate)||80, available: true, verified: "pending" });
+   }
+   try { await fetch("/api/email", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ type:"welcome", email, name, role }) }); } catch {}
+   onLogin({ id: uid, name, email, role, avatar: initials });
+  } catch(e: any) { setErr(e.message||"Something went wrong."); }
+  finally { setSubmitting(false); }
  };
 
  const inp: React.CSSProperties = { width: "100%", padding: "12px 14px", borderRadius: 10, border: "1.5px solid #2A2D3E", background: "#0D0F1A", color: "#F0F2FF", fontSize: 14, fontFamily: F.body, outline: "none", boxSizing: "border-box" };
@@ -825,12 +909,15 @@ function LoginPage({ role, onLogin, onBack, tutors, students, setTutors, setStud
  </div>
  </>
  ) : mode === "login" ? (
- <div><label style={lbl}>Your Name (used as login)</label><input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Enter your full name" style={inp} /></div>
+ <>
+ <div><label style={lbl}>Email</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="your@email.com" style={inp} /></div>
+ <div><label style={lbl}>Password</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSubmit()} placeholder="••••••••" style={inp} /></div>
+ </>
  ) : (
  <>
  <div><label style={lbl}>Full Name *</label><input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Thabang Mark" style={inp} /></div>
- <div><label style={lbl}>Email *</label><input value={email} onChange={e=>setEmail(e.target.value)} placeholder="your@email.com" style={inp} /></div>
- <div><label style={lbl}>Password *</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" style={inp} /></div>
+ <div><label style={lbl}>Email *</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="your@email.com" style={inp} /></div>
+ <div><label style={lbl}>Password * (min 6 chars)</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" style={inp} /></div>
  <div><label style={lbl}>University / College</label><input value={university} onChange={e=>setUniversity(e.target.value)} placeholder="e.g. Botswana Accountancy College" style={inp} /></div>
  {role === "student" && (
  <>
@@ -840,6 +927,7 @@ function LoginPage({ role, onLogin, onBack, tutors, students, setTutors, setStud
  {["1st Year","2nd Year","3rd Year","4th Year","Postgraduate"].map(y => <option key={y}>{y}</option>)}
  </select>
  </div>
+ <div><label style={lbl}>Referral Code (optional)</label><input value={referralCode} onChange={e=>setReferralCode(e.target.value)} placeholder="Enter a friend's code for 7 free Premium days" style={inp} /></div>
  </>
  )}
  {role === "tutor" && (
@@ -852,9 +940,10 @@ function LoginPage({ role, onLogin, onBack, tutors, students, setTutors, setStud
  )}
  </>
  )}
- {err && <div style={{ background: "#FF6B6B22", border: "1px solid #FF6B6B44", borderRadius: 10, padding: "10px 14px" }}><p style={{ color: "#FF6B6B", fontSize: 13, margin: 0, fontFamily: F.body }}> {err}</p></div>}
- <button onClick={handleSubmit} style={{ background: `linear-gradient(135deg,${themeColor},${themeColor}cc)`, color: "#fff", border: "none", borderRadius: 12, padding: 14, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: F.body, marginTop: 4 }}>
- {role === "admin" ? "Sign In to Admin Panel →" : mode === "login" ? "Sign In →" : "Create Account →"}
+ {err && <div style={{ background:"#FF6B6B22", border:"1px solid #FF6B6B44", borderRadius:10, padding:"10px 14px" }}><p style={{ color:"#FF6B6B", fontSize:13, margin:0, fontFamily:F.body }}>{err}</p></div>}
+ {mode === "register" && role !== "admin" && <div style={{ background:"rgba(255,255,255,0.04)", borderRadius:10, padding:"10px 14px" }}><p style={{ color:"#8892B0", fontSize:12, margin:0, fontFamily:F.body }}>{role === "tutor" ? "Your profile will be reviewed by admin before appearing to students." : "Check your email to confirm your account before signing in."}</p></div>}
+ <button onClick={handleSubmit} disabled={submitting} style={{ background:submitting?"#4A5568":`linear-gradient(135deg,${themeColor},${themeColor}cc)`, color:"#fff", border:"none", borderRadius:12, padding:14, fontSize:15, fontWeight:700, cursor:submitting?"not-allowed":"pointer", fontFamily:F.body, marginTop:4 }}>
+ {submitting ? "Please wait..." : role === "admin" ? "Sign In to Admin Panel →" : mode === "login" ? "Sign In →" : "Create Account →"}
  </button>
  </div>
  </div>
@@ -955,6 +1044,8 @@ function StudentDashboard({ user, ...shared }: { user: User } & SharedProps) {
  {tab === "messages" && <StudentMessages user={user} messages={messages} setMessages={setMessages} tutors={tutors} theme={th} />}
  {tab === "payments" && <StudentPayments user={user} payments={payments.filter(p => p.studentId === user.id)} theme={th} />}
  {tab === "reviews" && <StudentReviews user={user} reviews={reviews.filter(r => r.studentId === user.id)} tutors={tutors} setReviews={setReviews} bookings={myBookings} theme={th} />}
+      {tab === "upload" && <div style={{ maxWidth:720, margin:"0 auto" }}><PageHeader title="Upload Material" sub="Share study materials with fellow students" theme={th} /><MaterialUploadForm user={user} theme={th} onClose={() => setTab("home")} /></div>}
+      {tab === "referral" && <div><PageHeader title="Refer a Friend" sub="Earn 7 free Premium days per referral" theme={th} /><ReferralWidget student={{ id: user.id, userId: user.id, name: user.name, avatar: user.avatar, university: "", course: "", year: "", joined: "", plan: "free", referralCode: user.id.slice(0,8) }} theme={th} /></div>}
  </Shell>
  );
 }
@@ -1027,13 +1118,18 @@ function StudentTutors({ user, tutors, bookings, setBookings, setPayments, revie
  const filtered = approved.filter(t => !search || t.name.toLowerCase().includes(search.toLowerCase()) || t.modules.some(s => s.toLowerCase().includes(search.toLowerCase())));
  const tutorReviews = selected ? reviews.filter(r => r.tutorId === selected.id) : [];
 
- const doBook = () => {
- if (!selected || !date || !time || !module) { alert("Please fill all fields."); return; }
- const nb: Booking = { id: Date.now(), studentId: user.id, tutorId: selected.id, studentName: user.name, tutorName: selected.name, module, date, time, status: "pending", note, amount: selected.rate, createdAt: new Date().toISOString() };
- setBookings(p => [...p, nb]);
- setPayments(p => [...p, { id: Date.now()+1, studentId: user.id, tutorId: selected.id, bookingId: nb.id, studentName: user.name, tutorName: selected.name, amount: selected.rate, status: "pending", date: new Date().toLocaleDateString("en-GB"), method: "Card" }]);
- setBooked(true);
- };
+  const doBook = async () => {
+    if (!selected || !date || !time || !module) { alert("Please fill all fields."); return; }
+    try {
+      const { data: nb, error } = await supabase.from("bookings").insert({ student_id: user.id, tutor_id: selected.id, student_name: user.name, tutor_name: selected.name, module, date, time, status: "pending", note, amount: selected.rate }).select().single();
+      if (error) throw error;
+      await supabase.from("payments").insert({ student_id: user.id, tutor_id: selected.id, booking_id: nb.id, student_name: user.name, tutor_name: selected.name, amount: selected.rate, status: "pending", method: "Card" });
+      const [{ data: bData },{ data: pData }] = await Promise.all([supabase.from("bookings").select("*"), supabase.from("payments").select("*")]);
+      if (bData) setBookings(bData.map((b:any)=>({ id:b.id, studentId:b.student_id, tutorId:b.tutor_id, studentName:b.student_name, tutorName:b.tutor_name, module:b.module, date:b.date, time:b.time, status:b.status, note:b.note||"", amount:b.amount, createdAt:b.created_at })));
+      if (pData) setPayments(pData.map((p:any)=>({ id:p.id, studentId:p.student_id, tutorId:p.tutor_id, bookingId:p.booking_id, studentName:p.student_name, tutorName:p.tutor_name, amount:p.amount, status:p.status, date:new Date(p.created_at).toLocaleDateString("en-GB"), method:p.method||"Card" })));
+      setBooked(true);
+    } catch(e:any) { alert("Booking failed: " + e.message); }
+  };
 
  const inp: React.CSSProperties = { width: "100%", padding: "11px 14px", borderRadius: 10, border: `1.5px solid ${theme.border}`, background: theme.bg, color: theme.text, fontSize: 14, fontFamily: F.body, outline: "none", boxSizing: "border-box" };
 
@@ -1150,7 +1246,7 @@ function TutorCard({ tutor, theme, onClick, reviews }: { tutor: TutorProfile; th
 }
 
 function StudentBookings({ user, bookings, setBookings, theme }: { user: User; bookings: Booking[]; setBookings: React.Dispatch<React.SetStateAction<Booking[]>>; theme: AnyTheme }) {
- const cancel = (id: number) => setBookings(p => p.map(b => b.id === id ? { ...b, status: "cancelled" } : b));
+  const cancel = async (id: number) => { await supabase.from("bookings").update({ status: "cancelled" }).eq("id", id); setBookings(p => p.map(b => b.id === id ? { ...b, status: "cancelled" as BookingStatus } : b)); };
  return (
  <div>
  <PageHeader title="My Bookings" sub={`${bookings.length} total bookings`} theme={th} />
@@ -1180,7 +1276,7 @@ function StudentBookings({ user, bookings, setBookings, theme }: { user: User; b
 }
 
 function StudentMessages({ user, messages, setMessages, tutors, theme }: { user: User; messages: Message[]; setMessages: React.Dispatch<React.SetStateAction<Message[]>>; tutors: TutorProfile[]; theme: AnyTheme }) {
- const [activeConv, setActiveConv] = useState<number | null>(null);
+ const [activeConv, setActiveConv] = useState<string | null>(null);
  const [newMsg, setNewMsg] = useState("");
  const endRef = useRef<HTMLDivElement>(null);
 
@@ -1194,11 +1290,13 @@ function StudentMessages({ user, messages, setMessages, tutors, theme }: { user:
 
  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [convMsgs.length]);
 
- const sendMsg = () => {
- if (!newMsg.trim() || !activeConv) return;
- setMessages(p => [...p, { id: Date.now(), senderId: user.id, receiverId: activeConv, senderName: user.name, text: newMsg, timestamp: new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }), read: false }]);
- setNewMsg("");
- };
+  const sendMsg = async () => {
+    if (!newMsg.trim() || !activeConv) return;
+    const text = newMsg; setNewMsg("");
+    await supabase.from("messages").insert({ sender_id: user.id, receiver_id: activeConv, sender_name: user.name, text, read: false });
+    const { data } = await supabase.from("messages").select("*").order("created_at");
+    if (data) setMessages(data.map((m:any)=>({ id:m.id, senderId:m.sender_id, receiverId:m.receiver_id, senderName:m.sender_name, text:m.text, read:m.read, timestamp:new Date(m.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}) })));
+  };
 
  return (
  <div>
@@ -1296,18 +1394,22 @@ function StudentPayments({ user, payments, theme }: { user: User; payments: Paym
 
 function StudentReviews({ user, reviews, tutors, setReviews, bookings, theme }: { user: User; reviews: Review[]; tutors: TutorProfile[]; setReviews: React.Dispatch<React.SetStateAction<Review[]>>; bookings: Booking[]; theme: AnyTheme }) {
  const [showForm, setShowForm] = useState(false);
- const [selTutor, setSelTutor] = useState<number | null>(null);
+ const [selTutor, setSelTutor] = useState<string | null>(null);
  const [rating, setRating] = useState(0);
  const [comment, setComment] = useState("");
 
  const completedTutors = [...new Set(bookings.filter(b => b.status === "completed").map(b => b.tutorId))];
- const submit = () => {
- if (!selTutor || !rating || !comment) { alert("Please fill all fields."); return; }
- const tutor = tutors.find(t => t.id === selTutor);
- if (!tutor) return;
- setReviews(p => [...p, { id: Date.now(), studentId: user.id, tutorId: selTutor, studentName: user.name, tutorName: tutor.name, rating, comment, date: new Date().toLocaleDateString("en-GB", { month: "short", year: "numeric" }), flagged: false, hidden: false }]);
- setShowForm(false); setRating(0); setComment(""); setSelTutor(null);
- };
+  const submit = async () => {
+    if (!selTutor || !rating || !comment) { alert("Please fill all fields."); return; }
+    const tutor = tutors.find(t => t.id === selTutor);
+    if (!tutor) return;
+    const { data: newRev } = await supabase.from("reviews").insert({ student_id: user.id, tutor_id: selTutor, student_name: user.name, tutor_name: tutor.name, rating, comment }).select().single();
+    if (newRev) setReviews(p => [...p, { id: newRev.id, studentId: user.id, tutorId: selTutor as string, studentName: user.name, tutorName: tutor.name, rating, comment, date: new Date(newRev.created_at).toLocaleDateString("en-GB",{month:"short",year:"numeric"}), flagged: false, hidden: false }]);
+    const tutorRevs = [...reviews.filter(r=>r.tutorId===selTutor), { rating }];
+    const avg = parseFloat((tutorRevs.reduce((s:number,r:any)=>s+r.rating,0)/tutorRevs.length).toFixed(1));
+    await supabase.from("tutor_profiles").update({ rating: avg, review_count: tutorRevs.length }).eq("id", selTutor);
+    setShowForm(false); setRating(0); setComment(""); setSelTutor(null);
+  };
 
  return (
  <div>
@@ -1320,7 +1422,7 @@ function StudentReviews({ user, reviews, tutors, setReviews, bookings, theme }: 
  <h4 style={{ fontFamily: F.display, fontSize: 18, color: theme.text, margin: "0 0 18px" }}>Write a Review</h4>
  <div style={{ marginBottom: 14 }}>
  <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: theme.textSub, marginBottom: 6, textTransform: "uppercase" }}>Select Tutor</label>
- <select value={selTutor || ""} onChange={e => setSelTutor(Number(e.target.value))} style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: `1px solid ${theme.border}`, background: theme.bg, color: theme.text, fontSize: 14, fontFamily: F.body, outline: "none" }}>
+ <select value={selTutor || ""} onChange={e => setSelTutor(e.target.value)} style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: `1px solid ${theme.border}`, background: theme.bg, color: theme.text, fontSize: 14, fontFamily: F.body, outline: "none" }}>
  <option value="">— Select a tutor —</option>
  {completedTutors.map(id => { const t = tutors.find(t => t.id === id); return t ? <option key={id} value={id}>{t.name}</option> : null; })}
  </select>
@@ -1349,7 +1451,7 @@ function StudentReviews({ user, reviews, tutors, setReviews, bookings, theme }: 
 function TutorDashboard({ user, ...shared }: { user: User } & SharedProps) {
  const [tab, setTab] = useState("home");
  const th = T.tutor;
- const { tutors, setTutors, bookings, setBookings, messages, setMessages, reviews, payments, onLogout } = shared;
+ const { tutors, setTutors, bookings, setBookings, messages, setMessages, reviews, payments, setPayments, onLogout } = shared;
 
  const myProfile = tutors.find(t => t.userId === user.id);
  const myBookings = bookings.filter(b => b.tutorId === (myProfile?.id || -1));
@@ -1376,12 +1478,13 @@ function TutorDashboard({ user, ...shared }: { user: User } & SharedProps) {
  return (
  <Shell navItems={navItems} activeTab={tab} setActiveTab={setTab} user={user} theme={th} onLogout={onLogout}>
  {tab === "home" && <TutorHome profile={myProfile} bookings={myBookings} messages={myMessages} reviews={reviews.filter(r => r.tutorId === myProfile.id)} theme={th} />}
- {tab === "requests" && <TutorRequests profile={myProfile} bookings={myBookings} setBookings={setBookings} theme={th} />}
+ {tab === "requests" && <TutorRequests profile={myProfile} bookings={myBookings} setBookings={setBookings} setPayments={setPayments} theme={th} />}
  {tab === "schedule" && <TutorSchedule profile={myProfile} bookings={myBookings} setTutors={setTutors} theme={th} />}
  {tab === "messages" && <TutorMessages user={user} messages={messages} setMessages={setMessages} bookings={myBookings} theme={th} />}
  {tab === "earnings" && <TutorEarnings profile={myProfile} bookings={myBookings} payments={payments.filter(p => p.tutorId === myProfile.id)} theme={th} />}
  {tab === "reviews" && <TutorReviewsTab reviews={reviews.filter(r => r.tutorId === myProfile.id)} theme={th} />}
  {tab === "profile" && <TutorProfileTab profile={myProfile} setTutors={setTutors} theme={th} />}
+      {tab === "upload" && <div style={{ maxWidth:720, margin:"0 auto" }}><PageHeader title="Upload Material" sub="Share your study materials with students" theme={th} tutor /><MaterialUploadForm user={user} theme={th} onClose={() => setTab("home")} /></div>}
  </Shell>
  );
 }
@@ -1450,10 +1553,15 @@ function TutorHome({ profile, bookings, messages, reviews, theme }: { profile: T
  );
 }
 
-function TutorRequests({ profile, bookings, setBookings, theme }: { profile: TutorProfile; bookings: Booking[]; setBookings: React.Dispatch<React.SetStateAction<Booking[]>>; theme: AnyTheme }) {
- const confirm = (id: number) => setBookings(p => p.map(b => b.id === id ? { ...b, status: "confirmed" } : b));
- const decline = (id: number) => setBookings(p => p.map(b => b.id === id ? { ...b, status: "cancelled" } : b));
- const complete = (id: number) => setBookings(p => p.map(b => b.id === id ? { ...b, status: "completed" } : b));
+function TutorRequests({ profile, bookings, setBookings, setPayments, theme }: { profile: TutorProfile; bookings: Booking[]; setBookings: React.Dispatch<React.SetStateAction<Booking[]>>; setPayments?: React.Dispatch<React.SetStateAction<Payment[]>>; theme: AnyTheme }) {
+  const updateStatus = async (id: number, status: BookingStatus) => {
+    await supabase.from("bookings").update({ status }).eq("id", id);
+    setBookings(p => p.map(b => b.id === id ? { ...b, status } : b));
+    if (status === "completed") { await supabase.from("payments").update({ status: "completed" }).eq("booking_id", id); }
+  };
+  const confirm = (id: number) => updateStatus(id, "confirmed");
+  const decline = (id: number) => updateStatus(id, "cancelled");
+  const complete = (id: number) => updateStatus(id, "completed");
  const pending = bookings.filter(b => b.status === "pending");
  const others = bookings.filter(b => b.status !== "pending");
  return (
@@ -1503,7 +1611,7 @@ function TutorRequests({ profile, bookings, setBookings, theme }: { profile: Tut
 }
 
 function TutorSchedule({ profile, bookings, setTutors, theme }: { profile: TutorProfile; bookings: Booking[]; setTutors: React.Dispatch<React.SetStateAction<TutorProfile[]>>; theme: AnyTheme }) {
- const toggleAvail = () => setTutors(p => p.map(t => t.id === profile.id ? { ...t, available: !t.available } : t));
+  const toggleAvail = async () => { const v = !profile.available; await supabase.from("tutor_profiles").update({ available: v }).eq("id", profile.id); setTutors(p => p.map(t => t.id === profile.id ? { ...t, available: v } : t)); };
  const upcoming = bookings.filter(b => b.status === "confirmed" || b.status === "pending");
  return (
  <div>
@@ -1543,7 +1651,7 @@ function TutorSchedule({ profile, bookings, setTutors, theme }: { profile: Tutor
 }
 
 function TutorMessages({ user, messages, setMessages, bookings, theme }: { user: User; messages: Message[]; setMessages: React.Dispatch<React.SetStateAction<Message[]>>; bookings: Booking[]; theme: AnyTheme }) {
- const [activeConv, setActiveConv] = useState<number | null>(null);
+ const [activeConv, setActiveConv] = useState<string | null>(null);
  const [newMsg, setNewMsg] = useState("");
  const endRef = useRef<HTMLDivElement>(null);
 
@@ -1553,14 +1661,15 @@ function TutorMessages({ user, messages, setMessages, bookings, theme }: { user:
 
  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [convMsgs.length]);
 
- const sendMsg = () => {
- if (!newMsg.trim() || !activeConv) return;
- const booking = bookings.find(b => b.studentId === activeConv);
- setMessages(p => [...p, { id: Date.now(), senderId: user.id, receiverId: activeConv, senderName: user.name, text: newMsg, timestamp: new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }), read: false }]);
- setNewMsg("");
- };
+  const sendMsg = async () => {
+    if (!newMsg.trim() || !activeConv) return;
+    const text = newMsg; setNewMsg("");
+    await supabase.from("messages").insert({ sender_id: user.id, receiver_id: activeConv, sender_name: user.name, text, read: false });
+    const { data } = await supabase.from("messages").select("*").order("created_at");
+    if (data) setMessages(data.map((m:any)=>({ id:m.id, senderId:m.sender_id, receiverId:m.receiver_id, senderName:m.sender_name, text:m.text, read:m.read, timestamp:new Date(m.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}) })));
+  };
 
- const getStudentName = (id: number) => bookings.find(b => b.studentId === id)?.studentName || "Student";
+ const getStudentName = (id: string) => bookings.find(b => b.studentId === id)?.studentName || "Student";
 
  return (
  <div>
@@ -1697,10 +1806,14 @@ function TutorProfileTab({ profile, setTutors, theme }: { profile: TutorProfile;
  const [modules, setModules] = useState(profile.modules.join(", "));
  const [qualifications, setQualifications] = useState(profile.qualifications.join(", "));
  const [saved, setSaved] = useState(false);
- const save = () => {
- setTutors(p => p.map(t => t.id === profile.id ? { ...t, bio, rate: parseFloat(rate) || t.rate, modules: modules.split(",").map(s => s.trim()).filter(Boolean), qualifications: qualifications.split(",").map(q => q.trim()).filter(Boolean) } : t));
- setSaved(true); setTimeout(() => setSaved(false), 2000);
- };
+  const save = async () => {
+    const mods = modules.split(",").map((s:string)=>s.trim()).filter(Boolean);
+    const quals = qualifications.split(",").map((q:string)=>q.trim()).filter(Boolean);
+    const r = parseFloat(rate) || profile.rate;
+    await supabase.from("tutor_profiles").update({ bio, rate: r, modules: mods, qualifications: quals }).eq("id", profile.id);
+    setTutors(p => p.map(t => t.id === profile.id ? { ...t, bio, rate: r, modules: mods, qualifications: quals } : t));
+    setSaved(true); setTimeout(() => setSaved(false), 2000);
+  };
  const inp: React.CSSProperties = { width: "100%", padding: "11px 14px", borderRadius: 10, border: `1px solid ${theme.border}`, background: theme.bg, color: theme.text, fontSize: 14, fontFamily: F.body, outline: "none", boxSizing: "border-box" };
  const lbl: React.CSSProperties = { display: "block", fontSize: 11, fontWeight: 600, color: theme.textSub, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.07em" };
  return (
@@ -1829,7 +1942,7 @@ function AdminOverview({ tutors, students, bookings, reviews, payments, theme }:
 function AdminStudents({ students, setStudents, theme }: { students: StudentProfile[]; setStudents: React.Dispatch<React.SetStateAction<StudentProfile[]>>; theme: AnyTheme }) {
  const [search, setSearch] = useState("");
  const filtered = students.filter(s => !search || s.name.toLowerCase().includes(search.toLowerCase()));
- const remove = (id: number) => { if (window.confirm("Delete this student?")) setStudents(p => p.filter(s => s.id !== id)); };
+  const remove = async (id: string) => { if (window.confirm('Delete this student?')) { await supabase.from('profiles').delete().eq('id', id); setStudents(p => p.filter(s => s.id !== id)); } };
  return (
  <div>
  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
@@ -1861,8 +1974,8 @@ function AdminStudents({ students, setStudents, theme }: { students: StudentProf
 function AdminTutors({ tutors, setTutors, theme }: { tutors: TutorProfile[]; setTutors: React.Dispatch<React.SetStateAction<TutorProfile[]>>; theme: AnyTheme }) {
  const [search, setSearch] = useState("");
  const filtered = tutors.filter(t => !search || t.name.toLowerCase().includes(search.toLowerCase()));
- const remove = (id: number) => { if (window.confirm("Delete this tutor?")) setTutors(p => p.filter(t => t.id !== id)); };
- const suspend = (id: number) => setTutors(p => p.map(t => t.id === id ? { ...t, available: !t.available } : t));
+  const remove = async (id: string) => { if (window.confirm('Delete this tutor?')) { await supabase.from('profiles').delete().eq('id', id); setTutors(p => p.filter(t => t.id !== id)); } };
+  const suspend = async (id: string) => { const t = tutors.find(t=>t.id===id); if(!t) return; const v = !t.available; await supabase.from("tutor_profiles").update({ available: v }).eq("id", id); setTutors(p => p.map(t => t.id === id ? { ...t, available: v } : t)); };
  return (
  <div>
  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
@@ -1896,8 +2009,8 @@ function AdminTutors({ tutors, setTutors, theme }: { tutors: TutorProfile[]; set
 }
 
 function AdminVerification({ tutors, setTutors, theme }: { tutors: TutorProfile[]; setTutors: React.Dispatch<React.SetStateAction<TutorProfile[]>>; theme: AnyTheme }) {
- const approve = (id: number) => setTutors(p => p.map(t => t.id === id ? { ...t, verified: "approved" } : t));
- const reject = (id: number) => setTutors(p => p.map(t => t.id === id ? { ...t, verified: "rejected" } : t));
+  const approve = async (id: string) => { await supabase.from("tutor_profiles").update({ verified: "approved" }).eq("id", id); setTutors(p => p.map(t => t.id === id ? { ...t, verified: "approved" as VerifStatus } : t)); try { const tutor = tutors.find(t=>t.id===id); if(tutor) await fetch("/api/email",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({type:"tutor_verification",tutorEmail:tutor.email||"",tutorName:tutor.name,approved:true})}); } catch {} };
+  const reject = async (id: string) => { await supabase.from("tutor_profiles").update({ verified: "rejected" }).eq("id", id); setTutors(p => p.map(t => t.id === id ? { ...t, verified: "rejected" as VerifStatus } : t)); try { const tutor = tutors.find(t=>t.id===id); if(tutor) await fetch("/api/email",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({type:"tutor_verification",tutorEmail:tutor.email||"",tutorName:tutor.name,approved:false})}); } catch {} };
  const pending = tutors.filter(t => t.verified === "pending");
  const reviewed = tutors.filter(t => t.verified !== "pending");
  return (
@@ -1986,9 +2099,9 @@ function AdminPayments({ payments, bookings, theme }: { payments: Payment[]; boo
 
 function AdminReviews({ reviews, setReviews, theme }: { reviews: Review[]; setReviews: React.Dispatch<React.SetStateAction<Review[]>>; theme: AnyTheme }) {
  const [filter, setFilter] = useState("all");
- const toggleFlag = (id: number) => setReviews(p => p.map(r => r.id === id ? { ...r, flagged: !r.flagged } : r));
- const toggleHide = (id: number) => setReviews(p => p.map(r => r.id === id ? { ...r, hidden: !r.hidden } : r));
- const del = (id: number) => { if (window.confirm("Delete this review?")) setReviews(p => p.filter(r => r.id !== id)); };
+  const toggleFlag = async (id: number) => { const r = reviews.find(r=>r.id===id); if(!r) return; await supabase.from("reviews").update({ flagged: !r.flagged }).eq("id", id); setReviews(p => p.map(r => r.id === id ? { ...r, flagged: !r.flagged } : r)); };
+  const toggleHide = async (id: number) => { const r = reviews.find(r=>r.id===id); if(!r) return; await supabase.from("reviews").update({ hidden: !r.hidden }).eq("id", id); setReviews(p => p.map(r => r.id === id ? { ...r, hidden: !r.hidden } : r)); };
+  const del = async (id: number) => { if (window.confirm("Delete this review?")) { await supabase.from("reviews").delete().eq("id", id); setReviews(p => p.filter(r => r.id !== id)); } };
  const visible = reviews.filter(r => filter === "all" ? true : filter === "flagged" ? r.flagged : r.hidden);
  const avg = reviews.length ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1) : "—";
  return (
@@ -2135,4 +2248,260 @@ function StatusBadge({ status }: { status: BookingStatus }) {
  };
  const c = config[status];
  return <Badge label={c.label} color={c.color} bg={c.bg} />;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MOBILE STYLES
+// ═══════════════════════════════════════════════════════════════════════════════
+const MobileStylesSheet = () => (
+  <style>{`
+    @media (max-width: 768px) {
+      .nf-sidebar { transform: translateX(-100%); position: fixed !important; z-index: 200; transition: transform 0.25s; height: 100vh !important; }
+      .nf-sidebar.open { transform: translateX(0) !important; }
+      .nf-main { padding: 20px 16px 60px !important; }
+      .nf-burger { display: flex !important; }
+      .nf-overlay { display: block !important; }
+    }
+    @media (min-width: 769px) {
+      .nf-burger { display: none !important; }
+      .nf-overlay { display: none !important; }
+    }
+    * { box-sizing: border-box; }
+  `}</style>
+);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FILE UPLOAD WIDGET
+// ═══════════════════════════════════════════════════════════════════════════════
+function FileUploadWidget({ user, theme, onUploaded }: {
+  user: User;
+  theme: AnyTheme;
+  onUploaded: (url: string, fileName: string, pages: number) => void;
+}) {
+  const [dragging, setDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState("");
+  const fileRef = React.useRef<HTMLInputElement>(null);
+  const th = theme as typeof T.student;
+
+  const handleFile = async (file: File) => {
+    if (!file) return;
+    const allowed = ["application/pdf","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+    if (!allowed.includes(file.type) && !file.name.endsWith(".pdf") && !file.name.endsWith(".docx")) {
+      setError("Only PDF and Word documents are allowed."); return;
+    }
+    if (file.size > 50 * 1024 * 1024) { setError("File must be under 50MB."); return; }
+    setError(""); setUploading(true); setProgress(20);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `${user.id}/${Date.now()}.${ext}`;
+      setProgress(50);
+      const { data, error: uploadErr } = await supabase.storage.from("materials").upload(path, file, { cacheControl: "3600", upsert: false });
+      if (uploadErr) throw uploadErr;
+      setProgress(90);
+      const { data: urlData } = supabase.storage.from("materials").getPublicUrl(data.path);
+      setProgress(100);
+      const estimatedPages = Math.max(1, Math.round(file.size / 2048));
+      onUploaded(urlData.publicUrl, file.name, estimatedPages);
+    } catch (e: any) {
+      setError(e.message || "Upload failed.");
+    } finally { setUploading(false); setProgress(0); }
+  };
+
+  return (
+    <div>
+      <input ref={fileRef} type="file" accept=".pdf,.doc,.docx" style={{ display:"none" }}
+        onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
+      <div
+        onClick={() => fileRef.current?.click()}
+        onDragOver={e => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+        style={{ border:`2px dashed ${dragging ? th.accent : th.border}`, borderRadius:14, padding:"28px 20px", textAlign:"center", cursor:"pointer", background:dragging ? th.accentLight : "transparent", transition:"all 0.2s" }}>
+        {uploading ? (
+          <div>
+            <p style={{ color:th.textSub, fontSize:14, fontFamily:F.body, margin:"0 0 12px" }}>Uploading... {progress}%</p>
+            <div style={{ width:"100%", height:6, background:th.border, borderRadius:3, overflow:"hidden" }}>
+              <div style={{ width:`${progress}%`, height:"100%", background:th.gradient, transition:"width 0.3s", borderRadius:3 }} />
+            </div>
+          </div>
+        ) : (
+          <div>
+            <svg width="32" height="32" fill="none" stroke={th.accent} strokeWidth="1.5" viewBox="0 0 24 24" style={{ marginBottom:10 }}>
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <p style={{ color:th.text, fontSize:14, fontWeight:600, margin:"0 0 4px", fontFamily:F.body }}>
+              Drag & drop or <span style={{ color:th.accent }}>click to upload</span>
+            </p>
+            <p style={{ color:th.textMuted, fontSize:12, margin:0, fontFamily:F.body }}>PDF or Word · Max 50MB</p>
+          </div>
+        )}
+      </div>
+      {error && <p style={{ color:"#DC2626", fontSize:12, margin:"8px 0 0", fontFamily:F.body }}>{error}</p>}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PDF VIEWER
+// ═══════════════════════════════════════════════════════════════════════════════
+function PDFViewer({ url, title }: { url: string; title: string }) {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <div style={{ width:"100%", borderRadius:12, overflow:"hidden", border:"1px solid #E2E8F0" }}>
+      <div style={{ background:"#0F172A", padding:"10px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <p style={{ margin:0, fontSize:13, color:"#F0F2FF", fontFamily:F.body, fontWeight:600 }}>{title}</p>
+        <a href={url} target="_blank" rel="noopener noreferrer"
+          style={{ color:"#3B82F6", fontSize:12, fontFamily:F.body, textDecoration:"none", fontWeight:600 }}>
+          Open in new tab
+        </a>
+      </div>
+      {!loaded && (
+        <div style={{ height:400, background:"#F8FAFF", display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <p style={{ color:"#94A3B8", fontFamily:F.body, fontSize:14 }}>Loading document...</p>
+        </div>
+      )}
+      <iframe
+        src={`${url}#toolbar=1`}
+        style={{ width:"100%", height:600, border:"none", display:loaded?"block":"none" }}
+        onLoad={() => setLoaded(true)}
+        title={title}
+      />
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MATERIAL UPLOAD FORM
+// ═══════════════════════════════════════════════════════════════════════════════
+function MaterialUploadForm({ user, theme, onClose }: {
+  user: User; theme: AnyTheme; onClose: () => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [type, setType] = useState<"Notes"|"Exam Paper"|"Summary"|"Textbook">("Notes");
+  const [module, setModule] = useState("");
+  const [university, setUniversity] = useState("");
+  const [field, setField] = useState("");
+  const [yearLevel, setYearLevel] = useState("1st Year");
+  const [premium, setPremium] = useState(false);
+  const [fileUrl, setFileUrl] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [pages, setPages] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [done, setDone] = useState(false);
+  const [err, setErr] = useState("");
+  const th = theme as typeof T.student;
+  const inp: React.CSSProperties = { width:"100%", padding:"11px 14px", borderRadius:10, border:`1.5px solid ${th.border}`, background:th.bg, color:th.text, fontSize:14, fontFamily:F.body, outline:"none", boxSizing:"border-box" };
+  const lbl: React.CSSProperties = { display:"block", fontSize:11, fontWeight:600, color:th.textSub, marginBottom:6, textTransform:"uppercase", letterSpacing:"0.07em", fontFamily:F.body };
+
+  const submit = async () => {
+    if (!title || !module || !university || !field || !fileUrl) { setErr("Please fill all fields and upload a file."); return; }
+    setSubmitting(true); setErr("");
+    try {
+      await supabase.from("materials").insert({ title, type, module, university, field, year_level:yearLevel, pages, premium, file_url:fileUrl, uploaded_by:user.id });
+      setDone(true);
+    } catch (e: any) { setErr(e.message); }
+    finally { setSubmitting(false); }
+  };
+
+  if (done) return (
+    <div style={{ background:th.card, borderRadius:16, padding:32, border:`1px solid ${th.border}`, textAlign:"center" }}>
+      <div style={{ width:56, height:56, borderRadius:16, background:"#D1FAE5", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px" }}>
+        <svg width="26" height="26" fill="none" stroke="#059669" strokeWidth="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <h3 style={{ fontFamily:F.display, fontSize:20, color:th.text, margin:"0 0 8px" }}>Material Uploaded!</h3>
+      <p style={{ color:th.textSub, fontSize:14, margin:"0 0 20px", fontFamily:F.body }}>Your material is now visible to students.</p>
+      <button onClick={onClose} style={{ background:th.gradient, color:"#fff", border:"none", borderRadius:10, padding:"10px 24px", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:F.body }}>Done</button>
+    </div>
+  );
+
+  return (
+    <div style={{ background:th.card, borderRadius:16, padding:28, border:`1.5px solid ${th.accent}44` }}>
+      <h3 style={{ fontFamily:F.display, fontSize:20, color:th.text, margin:"0 0 22px" }}>Upload Study Material</h3>
+      <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+        <div><label style={lbl}>Document Title *</label><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="e.g. Introduction to Java Week 1 Notes" style={inp} /></div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+          <div><label style={lbl}>Type</label>
+            <select value={type} onChange={e=>setType(e.target.value as any)} style={inp}>
+              {["Notes","Exam Paper","Summary","Textbook"].map(t=><option key={t}>{t}</option>)}
+            </select>
+          </div>
+          <div><label style={lbl}>Year Level</label>
+            <select value={yearLevel} onChange={e=>setYearLevel(e.target.value)} style={inp}>
+              {["1st Year","2nd Year","3rd Year","4th Year","Postgraduate"].map(y=><option key={y}>{y}</option>)}
+            </select>
+          </div>
+        </div>
+        <div><label style={lbl}>Module *</label><input value={module} onChange={e=>setModule(e.target.value)} placeholder="e.g. Introduction to Java" style={inp} /></div>
+        <div><label style={lbl}>University *</label><input value={university} onChange={e=>setUniversity(e.target.value)} placeholder="e.g. Botswana Accountancy College" style={inp} /></div>
+        <div><label style={lbl}>Field of Study *</label><input value={field} onChange={e=>setField(e.target.value)} placeholder="e.g. Software Engineering & IT" style={inp} /></div>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <div onClick={()=>setPremium(!premium)} style={{ width:44, height:24, borderRadius:12, background:premium?th.accent:th.border, cursor:"pointer", position:"relative", transition:"background 0.2s", flexShrink:0 }}>
+            <div style={{ position:"absolute", top:3, left:premium?22:3, width:18, height:18, borderRadius:"50%", background:"#fff", transition:"left 0.2s" }} />
+          </div>
+          <span style={{ fontSize:13, color:th.textSub, fontFamily:F.body }}>Mark as Premium (requires subscription)</span>
+        </div>
+        <div>
+          <label style={lbl}>Upload File *</label>
+          {fileUrl ? (
+            <div style={{ background:"#D1FAE5", border:"1px solid #059669", borderRadius:10, padding:"12px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <p style={{ margin:0, fontSize:13, color:"#065F46", fontFamily:F.body, fontWeight:600 }}>{fileName}</p>
+              <button onClick={()=>{setFileUrl("");setFileName("");}} style={{ background:"none", border:"none", color:"#DC2626", cursor:"pointer", fontSize:12, fontFamily:F.body }}>Remove</button>
+            </div>
+          ) : (
+            <FileUploadWidget user={user} theme={theme} onUploaded={(url,name,pg)=>{setFileUrl(url);setFileName(name);setPages(pg);}} />
+          )}
+        </div>
+        {err && <p style={{ color:"#DC2626", fontSize:13, margin:0, fontFamily:F.body }}>{err}</p>}
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={submit} disabled={submitting} style={{ background:submitting?"#94A3B8":th.gradient, color:"#fff", border:"none", borderRadius:10, padding:"11px 24px", fontSize:14, fontWeight:700, cursor:submitting?"not-allowed":"pointer", fontFamily:F.body }}>
+            {submitting?"Uploading...":"Submit Material"}
+          </button>
+          <button onClick={onClose} style={{ background:th.bg, border:`1px solid ${th.border}`, color:th.textSub, borderRadius:10, padding:"11px 20px", fontSize:14, cursor:"pointer", fontFamily:F.body }}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REFERRAL WIDGET
+// ═══════════════════════════════════════════════════════════════════════════════
+function ReferralWidget({ student, theme }: { student: StudentProfile; theme: AnyTheme }) {
+  const [copied, setCopied] = useState(false);
+  const th = theme as typeof T.student;
+  const referralLink = typeof window !== "undefined"
+    ? `${window.location.origin}?ref=${student.referralCode||""}`
+    : `https://noteflow.vercel.app?ref=${student.referralCode||""}`;
+
+  const copy = () => {
+    navigator.clipboard.writeText(referralLink).then(()=>{
+      setCopied(true); setTimeout(()=>setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <div style={{ background:th.card, borderRadius:16, padding:24, border:`1px solid ${th.border}`, maxWidth:640 }}>
+      <h3 style={{ fontFamily:F.display, fontSize:20, color:th.text, margin:"0 0 6px" }}>Refer a Friend</h3>
+      <p style={{ color:th.textSub, fontSize:14, margin:"0 0 20px", fontFamily:F.body, lineHeight:1.6 }}>
+        Share your link. When a friend signs up using it, you both get <strong>7 free days of Premium</strong>!
+      </p>
+      <div style={{ background:th.bg, border:`1.5px solid ${th.border}`, borderRadius:10, padding:"12px 16px", display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:16, flexWrap:"wrap" }}>
+        <p style={{ margin:0, fontSize:13, color:th.textSub, fontFamily:F.mono, wordBreak:"break-all" }}>{referralLink}</p>
+        <button onClick={copy} style={{ background:copied?"#D1FAE5":th.gradient, color:copied?"#065F46":"#fff", border:"none", borderRadius:8, padding:"8px 18px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:F.body, flexShrink:0 }}>
+          {copied?"Copied!":"Copy Link"}
+        </button>
+      </div>
+      <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+        <span style={{ background:th.accentLight, color:th.accent, fontSize:11, fontWeight:600, padding:"4px 12px", borderRadius:20, fontFamily:F.body }}>
+          Your Code: {student.referralCode||"Loading..."}
+        </span>
+        <span style={{ background:"#EFF6FF", color:"#2563EB", fontSize:11, fontWeight:600, padding:"4px 12px", borderRadius:20, fontFamily:F.body }}>
+          Reward: 7 Days Premium per referral
+        </span>
+      </div>
+    </div>
+  );
 }
