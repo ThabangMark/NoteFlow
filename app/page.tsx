@@ -122,7 +122,7 @@ const StarPicker = ({ value, onChange }: { value: number; onChange: (n: number) 
 };
 
 // ─── INITIAL STATE (empty — admin adds users, tutors register, students sign up) ─
-const ADMIN_USER: User = { id: "admin-mark-00000000", name: "Mark", email: "mark@noteflow.bw", role: "admin", avatar: "MK" };
+const ADMIN_USER: User = { id: "admin-mark-00000000", name: "Mark", email: "mark@KitsoLink.bw", role: "admin", avatar: "MK" };
 
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
 export default function App() {
@@ -186,7 +186,7 @@ export default function App() {
    <div style={{ minHeight:"100vh", background:"#0D0F1A", display:"flex", alignItems:"center", justifyContent:"center" }}>
      <div style={{ textAlign:"center" }}>
        <div style={{ width:48, height:48, borderRadius:14, background:"linear-gradient(135deg,#1E3A8A,#3B82F6)", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, fontSize:22, fontFamily:F.display, margin:"0 auto 16px" }}>N</div>
-       <p style={{ color:"#8892B0", fontFamily:F.body, fontSize:14 }}>Loading NoteFlow...</p>
+       <p style={{ color:"#8892B0", fontFamily:F.body, fontSize:14 }}>Loading KitsoLink...</p>
      </div>
    </div>
  );
@@ -371,7 +371,7 @@ function PublicExplorePage({ onGetStarted, onLogin }: { onGetStarted: () => void
       <nav style={{ background: "#fff", borderBottom: "1px solid #E2E8F0", padding: "0 32px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg,#1E3A8A,#3B82F6)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: 16, fontFamily: F.display }}>N</div>
-          <span style={{ fontFamily: F.display, fontSize: 22, fontWeight: 900, background: "linear-gradient(135deg,#1E3A8A,#3B82F6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>NoteFlow</span>
+          <span style={{ fontFamily: F.display, fontSize: 22, fontWeight: 900, background: "linear-gradient(135deg,#1E3A8A,#3B82F6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>KitsoLink</span>
         </div>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <button onClick={() => onLogin("student")} style={{ background: "none", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "8px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer", color: "#0F172A", fontFamily: F.body }}>Sign In</button>
@@ -502,9 +502,9 @@ function PublicExplorePage({ onGetStarted, onLogin }: { onGetStarted: () => void
       <div style={{ background: "#0F172A", padding: "40px 32px", textAlign: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "center", marginBottom: 12 }}>
           <div style={{ width: 30, height: 30, borderRadius: 8, background: "linear-gradient(135deg,#2D6A4F,#52B788)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontFamily: F.display }}>N</div>
-          <span style={{ fontFamily: F.display, fontSize: 18, fontWeight: 900, color: "#fff" }}>NoteFlow</span>
+          <span style={{ fontFamily: F.display, fontSize: 18, fontWeight: 900, color: "#fff" }}>KitsoLink</span>
         </div>
-        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, margin: 0 }}>Built for Botswana · NoteFlow 2026</p>
+        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, margin: 0 }}>Built for Botswana · KitsoLink 2026</p>
       </div>
     </div>
   );
@@ -729,7 +729,7 @@ function PremiumModal({ onClose, onSignUp }: { onClose: () => void; onSignUp: ()
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
       <div style={{ background: "#fff", borderRadius: 24, width: "100%", maxWidth: 640, overflow: "hidden" }} onClick={e => e.stopPropagation()}>
         <div style={{ background: "linear-gradient(135deg,#0F172A,#1E3A8A)", padding: "28px 28px 24px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <div><p style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>NoteFlow</p><h2 style={{ fontFamily: F.display, fontSize: 24, fontWeight: 900, color: "#fff", margin: 0 }}>Unlock Premium Materials</h2></div>
+          <div><p style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>KitsoLink</p><h2 style={{ fontFamily: F.display, fontSize: 24, fontWeight: 900, color: "#fff", margin: 0 }}>Unlock Premium Materials</h2></div>
           <button onClick={onClose} style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 8, width: 34, height: 34, fontSize: 16, cursor: "pointer", color: "#fff" }}>x</button>
         </div>
         <div style={{ padding: "24px 28px 28px" }}>
@@ -772,7 +772,7 @@ function LandingPage({ onChooseRole, onBack }: { onChooseRole: (r: Role) => void
  <div style={{ textAlign: "center", marginBottom: 56, position: "relative" }}>
  <div style={{ display: "inline-flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
  <div style={{ width: 44, height: 44, borderRadius: 14, background: "linear-gradient(135deg,#2D6A4F,#52B788)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}></div>
- <span style={{ fontFamily: F.display, fontSize: 32, fontWeight: 900, color: "#F0F2FF", letterSpacing: "-0.02em" }}>NoteFlow</span>
+ <span style={{ fontFamily: F.display, fontSize: 32, fontWeight: 900, color: "#F0F2FF", letterSpacing: "-0.02em" }}>KitsoLink</span>
  </div>
  <h1 style={{ fontFamily: F.display, fontSize: "clamp(36px,5vw,64px)", fontWeight: 900, color: "#F0F2FF", margin: "0 0 16px", lineHeight: 1.1, letterSpacing: "-0.03em" }}>
  Connecting Botswana's<br /><span style={{ color: "#52B788" }}>Students & Tutors</span>
@@ -786,7 +786,7 @@ function LandingPage({ onChooseRole, onBack }: { onChooseRole: (r: Role) => void
  </div>
  <div style={{ display: "flex", gap: 20, alignItems: "center", marginTop: 40 }}>
  {onBack && <button onClick={onBack} style={{ background: "none", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "7px 16px", color: "#8892B0", fontSize: 13, cursor: "pointer", fontFamily: F.body }}>← Back to Explore</button>}
- <p style={{ color: "#4A5568", fontSize: 13, margin: 0 }}>Built for Botswana · NoteFlow 2026</p>
+ <p style={{ color: "#4A5568", fontSize: 13, margin: 0 }}>Built for Botswana · KitsoLink 2026</p>
  </div>
  </div>
  );
@@ -977,7 +977,7 @@ function Shell({ navItems, activeTab, setActiveTab, user, theme, onLogout, heade
  <div style={{ padding: "0 10px 24px", borderBottom: "1px solid rgba(255,255,255,0.08)", marginBottom: 16 }}>
  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
  <div style={{ width: 32, height: 32, borderRadius: 10, background: theme.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}></div>
- <span style={{ fontFamily: F.display, fontSize: 18, fontWeight: 900, color: "#F0F2FF" }}>NoteFlow</span>
+ <span style={{ fontFamily: F.display, fontSize: 18, fontWeight: 900, color: "#F0F2FF" }}>KitsoLink</span>
  </div>
  </div>
  <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 3 }}>
@@ -2474,7 +2474,7 @@ function ReferralWidget({ student, theme }: { student: StudentProfile; theme: An
   const th = theme as typeof T.student;
   const referralLink = typeof window !== "undefined"
     ? `${window.location.origin}?ref=${student.referralCode||""}`
-    : `https://noteflow.vercel.app?ref=${student.referralCode||""}`;
+    : `https://KitsoLink.vercel.app?ref=${student.referralCode||""}`;
 
   const copy = () => {
     navigator.clipboard.writeText(referralLink).then(()=>{
