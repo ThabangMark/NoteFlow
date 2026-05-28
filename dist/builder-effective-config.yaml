@@ -1,0 +1,13 @@
+directories:
+  output: dist
+  buildResources: build
+appId: com.noteflow.app
+productName: Noteflow
+files:
+  - filter:
+      - main.js
+extraFiles: []
+asar: false
+win:
+  target: portable
+electronVersion: 42.2.0

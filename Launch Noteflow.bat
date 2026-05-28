@@ -1,0 +1,6 @@
+@echo off
+echo Starting Noteflow...
+start cmd /k "cd /d "C:\Users\thabang mark odirile\Documents\noteflow" && npm run dev"
+echo Waiting for server to start...
+timeout /t 15
+start cmd /k "cd /d "C:\Users\thabang mark odirile\Documents\noteflow" && npm run electron"

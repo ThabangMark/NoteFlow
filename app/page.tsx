@@ -3,9 +3,9 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+  'https://rzvfifjnwukzlhnskwct.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ6dmZpZmpud3VremxobnNrd2N0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODk3MDEsImV4cCI6MjA4OTM2NTcwMX0.LAwuW3OFl6DFO0LtUl0W9TOR83WnEtY1mSbQezW6vHo'
+)
 
 const FontLink = () => (
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700;900&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
